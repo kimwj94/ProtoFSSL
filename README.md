@@ -1,1 +1,1 @@
-# Federated Semi-Supervised Learning with Prototypical Network
+# ProtoFSSL: Federated Semi-Supervised Learning with Prototypical Networks
