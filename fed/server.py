@@ -57,15 +57,17 @@ class Server:
     def get_accuracy(self, test_dataset, model):
         class_idx = list(range(self.num_class))
         query_set_label = []
+        per_class = len(test_dataset[0])
 
         for idx in class_idx:
-            label_idx = list(range(300))
-            query_set_label.append(np.take(test_dataset[idx], label_idx, axis=0))
+            #label_idx = list(range(300))
+            #query_set_label.append(np.take(test_dataset[idx], label_idx, axis=0))
+            query_set_label.append(test_dataset[idx])
 
         query_set_label = np.array(query_set_label)
-        query_set_label = np.reshape(query_set_label, (self.num_class * 300,) + self.input_shape)
+        query_set_label = np.reshape(query_set_label, (self.num_class * per_class,) + self.input_shape)
 
-        y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, 300))
+        y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, per_class))
         y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, self.num_class), tf.float32))
 
 
@@ -82,7 +84,7 @@ class Server:
         # average all distribution
         client_p = tf.stack(client_predictions, axis=0)
         averaged_p = tf.reduce_mean(client_p, axis=0)
-        preds = np.argmax(tf.reshape(averaged_p, [self.num_class, 300, -1]), axis=-1)
+        preds = np.argmax(tf.reshape(averaged_p, [self.num_class, per_class, -1]), axis=-1)
         eq = np.equal(preds, y.astype(int)).astype(np.float32)
 
         loss = tf.keras.losses.SparseCategoricalCrossentropy()(np.reshape(y.astype(int), [-1]), averaged_p)
