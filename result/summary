@@ -1,6 +1,0 @@
-expname: test_stl10, time: 20220124 1726, dataset: stl10, model: res9, maxround: 1, maxval: 0.100000, maxtest: 0.100000
-expname: test_stl10, time: 20220124 1728, dataset: stl10, model: res9, maxround: 1, maxval: 0.100000, maxtest: 0.100000
-expname: test_cifar10, time: 20220124 2131, dataset: cifar10, model: res9, maxround: 1, maxval: 0.100000, maxtest: 0.100000
-expname: test_cifar10, time: 20220124 2137, dataset: cifar10, model: res18, maxround: 2, maxval: 0.103333, maxtest: 0.103333
-expname: test_cifar10, time: 20220124 2156, dataset: cifar10, model: wres28x2, maxround: 1, maxval: 0.100000, maxtest: 0.100000
-expname: test_cifar10, time: 20220124 2159, dataset: cifar10, model: wres28x2, maxround: 1, maxval: 0.100000, maxtest: 0.100000
