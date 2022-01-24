@@ -40,7 +40,7 @@ class ResNet18(tf.keras.Model):
         elif bn == 'gn':
             layers.append(tfa.layers.GroupNormalization(groups=32, axis=-1))
         elif bn == 'sbn':
-            layers.append(BatchNormalization(axis=-1))
+            layers.append(BatchNormalization(axis=-1, momentum=0))
 
         layers.append(ReLU())        
         if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
@@ -95,7 +95,7 @@ class ResNet9(tf.keras.Model):
         elif bn == 'gn':
             layers.append(tfa.layers.GroupNormalization(groups=32, axis=-1))
         elif bn == 'sbn':
-            layers.append(BatchNormalization(axis=-1))
+            layers.append(BatchNormalization(axis=-1, momentum=0))
 
         layers.append(ReLU())        
         if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
