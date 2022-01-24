@@ -55,40 +55,54 @@ class Server:
         
     # FedAvg and evaluate global model with validation set
     def get_accuracy(self, test_dataset, model):
+        
         class_idx = list(range(self.num_class))
-        query_set_label = []
+        
         per_class = len(test_dataset[0])
 
-        for idx in class_idx:
-            #label_idx = list(range(300))
-            #query_set_label.append(np.take(test_dataset[idx], label_idx, axis=0))
-            query_set_label.append(test_dataset[idx])
+        final_acc = 0.0
+        final_loss = 0.0
 
-        query_set_label = np.array(query_set_label)
-        query_set_label = np.reshape(query_set_label, (self.num_class * per_class,) + self.input_shape)
+        total_num = per_class * self.num_class        
+        div = 10
+        per_class_div = per_class // div
+        for i in range(div):
+            query_set_label = []
 
-        y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, per_class))
-        y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, self.num_class), tf.float32))
+            for idx in class_idx:
+                label_idx = list(range(i*per_class_div, (i+1)*per_class_div))
+                query_set_label.append(np.take(test_dataset[idx], label_idx, axis=0))
 
+            query_set_label = np.array(query_set_label)
+            query_set_label = np.reshape(query_set_label, (self.num_class * per_class_div,) + self.input_shape)
 
-        cat = tf.concat([query_set_label], axis=0)
-        z = model(cat, training=False)
+            y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, per_class_div))
+            y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, self.num_class), tf.float32))
 
-        client_predictions = []
-        for client_proto in self.client_prototype_list:
-            q_dists_client = calc_euclidian_dists(z, client_proto)
-            p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
+            cat = tf.concat([query_set_label], axis=0)
+            z = model(cat, training=False)
 
-            client_predictions.append(p_y_unlabel_client)
+            client_predictions = []
+            for client_proto in self.client_prototype_list:
+                q_dists_client = calc_euclidian_dists(z, client_proto)
+                p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
 
-        # average all distribution
-        client_p = tf.stack(client_predictions, axis=0)
-        averaged_p = tf.reduce_mean(client_p, axis=0)
-        preds = np.argmax(tf.reshape(averaged_p, [self.num_class, per_class, -1]), axis=-1)
-        eq = np.equal(preds, y.astype(int)).astype(np.float32)
+                client_predictions.append(p_y_unlabel_client)
 
-        loss = tf.keras.losses.SparseCategoricalCrossentropy()(np.reshape(y.astype(int), [-1]), averaged_p)
-        acc = np.mean(eq)
+            # average all distribution
+            client_p = tf.stack(client_predictions, axis=0)
+            averaged_p = tf.reduce_mean(client_p, axis=0)
+            preds = np.argmax(tf.reshape(averaged_p, [self.num_class, per_class_div, -1]), axis=-1)
+            eq = np.equal(preds, y.astype(int)).astype(np.float32)
+
+            loss = tf.keras.losses.SparseCategoricalCrossentropy()(np.reshape(y.astype(int), [-1]), averaged_p)
+            acc = np.mean(eq)
+
+            final_acc += acc
+            final_loss += loss
+
+        final_acc /= div
+        final_loss /= div
 
         return acc, loss
 

@@ -138,10 +138,12 @@ def get_stl10_dataset():
     idx = np.random.permutation(len(train_images))
     train_images = train_images[idx]
     train_labels = train_labels[idx]
+    
     np.random.seed(SEED_NUM)
     idx = np.random.permutation(len(test_images))
     test_images = test_images[idx]
     test_labels = test_labels[idx]
+    
     np.random.seed(SEED_NUM)
     idx = np.random.permutation(len(unlabeled_images))
     unlabeled_images = unlabeled_images[idx]
@@ -151,8 +153,8 @@ def get_stl10_dataset():
     labels = np.concatenate((train_labels, test_labels), axis = 0)
     labels = tf.keras.utils.to_categorical(labels, num_class)
     
-    #train_labels = tf.keras.utils.to_categorical(train_labels, num_class)
-    #test_labels = tf.keras.utils.to_categorical(test_labels, num_class)
+    train_labels = tf.keras.utils.to_categorical(train_labels, num_class)
+    test_labels = tf.keras.utils.to_categorical(test_labels, num_class)
 
     train_dataset = []
     val_dataset = []
@@ -162,7 +164,7 @@ def get_stl10_dataset():
         val_dataset.append(images[np.where(labels == 1)[1]==i][1000:1150, :, :, :])
         test_dataset.append(images[np.where(labels == 1)[1]==i][1150:1300, :, :, :])
 
-    return train_dataset, val_dataset, test_dataset, unlabeled_images, num_class, input_shape
+    return train_dataset, val_dataset, test_dataset, unlabeled_images, num_class, input_shape    
 
 
 # distribution for unlabeled data
