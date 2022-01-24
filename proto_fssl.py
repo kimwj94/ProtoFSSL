@@ -19,7 +19,7 @@ from tensorflow.keras.optimizers import Adam, RMSprop, SGD
 
 from fed.server import Server
 from fed.client import Client
-from nets.resnet import ResNet9, ResNet18
+from nets.resnet import ResNet9, ResNet18, WideResNet28x2
 from datasets import get_dataset
 
 
@@ -80,14 +80,22 @@ UNLABEL_LOSS_TYPE = FLAGS.unlabel_loss_type # loss for unlabeled data. MSE or CE
 OPT = FLAGS.optimizer # optimizer
 
 # get model
-def get_model(model_name='res9'):    
-    if model_name == 'res9':
-        model = ResNet9(input_shape=INPUT_SHAPE, bn=FLAGS.bn_type)
+def get_model(model_name='res9', input_shape=(32,32,3)):
+    
+    if input_shape[0] == 32:
+        pool_list = [2,2,2,4]
+    elif input_shape[0] == 96:
+        pool_list=[3,2,4,4]
+    
+    if model_name == 'res9':    
+        model = ResNet9(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
     elif model_name == 'res18':
-        model = ResNet18(input_shape=INPUT_SHAPE, bn=FLAGS.bn_type)
+        model = ResNet18(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
+    elif model_name == 'wres28x2':
+        model = WideResNet28x2(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
 
-    dummy_in = tf.convert_to_tensor(np.random.random((1,) + INPUT_SHAPE))
-    out = model(dummy_in)    
+    dummy_in = tf.convert_to_tensor(np.random.random((1,) + input_shape))
+    out = model(dummy_in) 
     return model
 
 def write_record(record_list, suffix):
@@ -105,8 +113,11 @@ if __name__=='__main__':
                                                                                     num_client=NUM_CLIENT,
                                                                                     num_label=NUM_LABEL,
                                                                                     num_unlabel=NUM_UNLABEL)
-    
-    server = Server(get_model(FLAGS.model),
+    server_model = get_model(FLAGS.model, INPUT_SHAPE)
+    print('Model built:', FLAGS.model)   
+    print(server_model.summary())
+
+    server = Server(server_model,
                     val_dataset,
                     test_dataset,
                     num_class=NUM_CLASS,
@@ -148,7 +159,7 @@ if __name__=='__main__':
     max_val, max_test = 0.0, 0.0
     max_round = 0
     cycle = 1
-    client_model = get_model(FLAGS.model)
+    client_model = get_model(FLAGS.model, INPUT_SHAPE)
 
     train_record_list = []
     val_record_list = []
@@ -214,19 +225,19 @@ if __name__=='__main__':
         round_end = time.time()
         print("--Time for Round {}: {}".format(r, round_end-round_start))
     
-    # Write record
-    write_record(train_record_list, '_train_acc')
-    write_record(val_record_list, '_val_acc')
-    write_record(test_record_list, '_test_acc')
-
     dt_string = startTime.strftime("%Y%m%d %H%M")
+
+    # Write record
+    write_record(train_record_list, '_' + dt_string + '_train_acc')
+    write_record(val_record_list, '_' + dt_string + '_val_acc')
+    write_record(test_record_list, '_' + dt_string + '_test_acc')
 
     with open(os.path.join(result_path, 'summary'), 'a+') as f: 
         if FLAGS.bn_type is None:
             model_name = FLAGS.model
         else:
             model_name = FLAGS.model + FLAGS.bn_type
-        f.write("expname: {}, time: {}, dataset: {}, model: {}, maxround: {}, maxval: {:.6f}, maxtest: {:.6f}"\
+        f.write("expname: {}, time: {}, dataset: {}, model: {}, maxround: {}, maxval: {:.6f}, maxtest: {:.6f}\n"\
             .format(FLAGS.exp_name, dt_string, FLAGS.dataset, model_name, max_round, max_val, max_test))
     f.close()
 
