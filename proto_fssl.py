@@ -82,6 +82,7 @@ OPT = FLAGS.optimizer # optimizer
 # get model
 def get_model(model_name='res9', input_shape=(32,32,3)):
     
+    #Define downsample sizes
     if input_shape[0] == 32:
         pool_list = [2,2,2,4]
     elif input_shape[0] == 96:

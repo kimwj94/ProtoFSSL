@@ -68,6 +68,15 @@ class ResNet18(tf.keras.Model):
         return out
 """
 
+def bn_choice(bn=None):
+    if bn is None:
+        return Lambda(lambda x: x)
+    elif bn == 'bn':
+        return BatchNormalization(axis=-1)
+    elif bn == 'sbn':
+        return BatchNormalization(axis=-1, momentum=0)
+    elif bn == 'gn':
+        return tfa.layers.GroupNormalization(groups=32, axis=-1)
 
 class ResNet9(tf.keras.Model):
 
@@ -145,7 +154,7 @@ class BasicBlock(tf.keras.layers.Layer):
         downsample = None,      
         groups: int = 1,
         base_width: int = 64,      
-        norm_layer = None
+        bn = None
     ) -> None:
         super().__init__()
 
@@ -153,10 +162,10 @@ class BasicBlock(tf.keras.layers.Layer):
             raise ValueError("BasicBlock only supports groups=1 and base_width=64")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, strides)
-        self.bn1 = norm_layer
+        self.bn1 = bn_choice(bn)
         self.relu = ReLU()
         self.conv2 = conv3x3(planes, planes)
-        self.bn2 = norm_layer
+        self.bn2 = bn_choice(bn)
         
         # Zero-initialize the last BN in each residual branch,
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.
@@ -201,17 +210,17 @@ class Bottleneck(tf.keras.layers.Layer):
         downsample = None,
         groups: int = 1,
         base_width: int = 64,
-        norm_layer = None,
+        bn = None,
     ) -> None:
         super().__init__()
         width = int(planes * (base_width / 64.0)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
-        self.bn1 = norm_layer
+        self.bn1 = bn_choice(bn)
         self.conv2 = conv3x3(width, width, strides, groups)
-        self.bn2 = norm_layer
+        self.bn2 = bn_choice(bn)
         self.conv3 = conv1x1(width, planes * self.expansion)
-        self.bn3 = norm_layer
+        self.bn3 = bn_choice(bn)
         self.bn3.weight=0.0
         self.relu = ReLU()
         self.downsample = downsample
@@ -240,6 +249,7 @@ class Bottleneck(tf.keras.layers.Layer):
         return out
 
 
+
 class ResNet(tf.keras.Model):
     def __init__(
         self,
@@ -254,15 +264,8 @@ class ResNet(tf.keras.Model):
         pool_list=[2,2,2,4]
     ) -> None:
         super().__init__()        
-        if bn == 'bn':
-            norm_layer = BatchNormalization(axis=-1)
-        elif bn == 'sbn':
-            norm_layer = BatchNormalization(axis=-1, momentum=0)
-        elif bn == 'gn':
-            norm_layer = tfa.layers.GroupNormalization(groups=32, axis=-1)
-        else:
-            norm_layer = Lambda(lambda x: x)
-        self._norm_layer = norm_layer
+        norm_layer = bn_choice(bn)
+        self._bn = bn
 
         self.inplanes = 64
         self.groups = groups
@@ -297,7 +300,7 @@ class ResNet(tf.keras.Model):
         blocks: int,
         strides: int = 1
     ):
-        norm_layer = self._norm_layer
+        norm_layer = bn_choice(self._bn)
         downsample = None
         if strides != 1 or self.inplanes != planes * block.expansion:
             downsample = Sequential([
@@ -309,7 +312,7 @@ class ResNet(tf.keras.Model):
         layers = []
         layers.append(
             block(
-                self.inplanes, planes, strides, downsample, self.groups, self.base_width, norm_layer
+                self.inplanes, planes, strides, downsample, self.groups, self.base_width, self._bn
             )
         )
         self.inplanes = planes * block.expansion
@@ -320,7 +323,7 @@ class ResNet(tf.keras.Model):
                     planes,
                     groups=self.groups,
                     base_width=self.base_width,
-                    norm_layer=norm_layer,
+                    bn=self._bn,
                 )
             )
 
