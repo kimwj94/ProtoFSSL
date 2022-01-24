@@ -1,1 +1,1 @@
-expname: test, time: 2022012415:58, dataset: cifar10, model: res9, maxround: 3, maxval: 0.131667, maxtest: 0.128000
+expname: test, time: 2022012415:58, dataset: cifar10, model: res9, maxround: 3, maxval: 0.131667, maxtest: 0.128000expname: test_cifar10, time: 20220124 1646, dataset: cifar10, model: res9, maxround: 2, maxval: 0.116667, maxtest: 0.116667expname: test_svhn, time: 20220124 1646, dataset: svhn, model: res9, maxround: 1, maxval: 0.105000, maxtest: 0.090000

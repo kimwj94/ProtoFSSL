@@ -214,12 +214,12 @@ if __name__=='__main__':
         round_end = time.time()
         print("--Time for Round {}: {}".format(r, round_end-round_start))
     
-    # Write record
-    write_record(train_record_list, '_train_acc')
-    write_record(val_record_list, '_val_acc')
-    write_record(test_record_list, '_test_acc')
-
     dt_string = startTime.strftime("%Y%m%d %H%M")
+
+    # Write record
+    write_record(train_record_list, '_' + dt_string + '_train_acc')
+    write_record(val_record_list, '_' + dt_string + '_val_acc')
+    write_record(test_record_list, '_' + dt_string + '_test_acc')
 
     with open(os.path.join(result_path, 'summary'), 'a+') as f: 
         if FLAGS.bn_type is None:
