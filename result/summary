@@ -1,0 +1,1 @@
+expname: test, time: 2022012415:58, dataset: cifar10, model: res9, maxround: 3, maxval: 0.131667, maxtest: 0.128000
