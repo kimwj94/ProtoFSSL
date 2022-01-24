@@ -1,0 +1,565 @@
+exp = 'ex11_7'
+seed_num=1001
+
+s_label = 1 
+q_label = 2
+T = 0.5 # softmax temperature for pseudo labeling. 0 ~ 1
+weight_unlabel = 1e-1 # weight for loss for unlabeled data
+
+mu = 1e-3
+
+lr = 1e-3 # learning rate
+opt = 'RMSprop' # optimizer
+
+is_iid = True
+'''
+# For SGD
+lr = 0.1
+mom = 0.7
+'''
+
+
+import os
+import copy
+import time
+import random
+
+from tqdm import tqdm
+import numpy as np
+import matplotlib.pyplot as plt
+
+import tensorflow as tf
+from tensorflow.keras import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, Input, MaxPool2D, ReLU
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.optimizers import Adam, RMSprop, SGD
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.initializers import VarianceScaling
+#import tensorflow_datasets as tfds
+
+
+# GPU setting
+gpus = tf.config.experimental.list_physical_devices('GPU')
+idx = 0
+tf.config.experimental.set_visible_devices(gpus[idx], 'GPU')
+tf.config.experimental.set_memory_growth(gpus[idx], True)
+
+# path for accuracy & loss
+path = './result'
+isExist = os.path.exists(path)
+
+if not isExist:  
+    os.makedirs(path)
+
+########################## Hyperparameters ###########################
+
+
+
+num_class = 10
+num_label = 5 # number of labeled data per class for one client
+num_unlabel = 540 - num_label * num_class # number of unlabeled data for one client
+
+num_round = 300
+num_client = 100
+num_active_client = 5
+
+local_episode = 10 # number of local episode
+
+q_unlabel = 100 # number of unlabeled data for query set
+
+unlabel_round = 0 # from what round to use unlabeled data
+loss_type = 'CE' # loss for unlabeled data. MSE or CE
+
+g_s_label = 5 # number of labeled data per class for local prototype to send to server. <= num_label
+
+input_shape = (32, 32, 3)
+is_bias = True  # bias for model
+l2_factor = 1e-4 # l2 regularizer for model
+
+
+
+
+# get train/validation/test dataset
+def get_dataset():
+    
+    (train_images, train_labels), (test_images, test_labels) = cifar10.load_data()
+
+    np.random.seed(seed_num)
+    idx = np.random.permutation(len(train_images))
+    train_images = train_images[idx]
+    train_labels = train_labels[idx]
+    np.random.seed(seed_num)
+    idx = np.random.permutation(len(test_images))
+    test_images = test_images[idx]
+    test_labels = test_labels[idx]
+
+    images = np.concatenate((train_images, test_images), axis = 0)
+    labels = np.concatenate((train_labels, test_labels), axis = 0)
+
+    images = images.astype('float32')
+    labels = tf.keras.utils.to_categorical(labels, num_class)
+
+    images /= 255.0
+
+    train_dataset = []
+    val_dataset = []
+    test_dataset = []
+    for i in range(10):
+        train_dataset.append(images[np.where(labels == 1)[1]==i][:5400, :, :, :])
+        val_dataset.append(images[np.where(labels == 1)[1]==i][5400:5700, :, :, :])
+        test_dataset.append(images[np.where(labels == 1)[1]==i][5700:, :, :, :])
+    
+    return train_dataset, val_dataset, test_dataset
+
+
+# distribution for unlabeled data
+def get_data_distribution():
+    if is_iid:
+        ratio = [[0.5 for _ in range(10)] for _ in range(10)]
+        for i in ratio:
+            for j in range(10):
+                if i[j] == 0.5:
+                    i[j] = num_unlabel//10
+        return ratio
+    else:
+        ratio = [
+            [0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15], # type 0
+            [0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03], # type 1 
+            [0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03], # type 2 
+            [0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03], # type 3 
+            [0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02], # type 4 
+            [0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03], # type 5 
+            [0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03], # type 6 
+            [0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03], # type 7 
+            [0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15], # type 8 
+            [0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50], # type 9
+        ]
+        for i in ratio:
+            for j in range(10):
+                if i[j] == 0.5:
+                    i[j] = 244
+                elif i[j] == 0.15:
+                    i[j] = 73
+                elif i[j] == 0.03:
+                    i[j] = 15
+                elif i[j] == 0.02:
+                    i[j] = 10
+    
+        return ratio
+
+
+# distribute data for clients
+def get_client_dataset(dataset, ratio):            
+    client_dataset = []
+
+    for _ in range(num_client):
+        temp = {}
+        for i in range(num_class):
+            temp[str(i)] = []
+        temp['unlabel'] = []
+        client_dataset.append(temp)
+
+    for label in range(num_class):
+        num_data = len(dataset[label])
+        idx = 0
+        # distribute label
+        for client in range(num_client):
+            for _ in range(num_label):
+                client_dataset[client][str(label)].append(dataset[label][idx])
+                idx += 1
+                
+        # distribute unlabel
+        for client in range(num_client):        
+            for _ in range(ratio[client%10][label]):
+                client_dataset[client]['unlabel'].append(dataset[label][idx])
+                idx += 1
+                        
+    for i in range(num_client):
+        for key in client_dataset[i]:
+            client_dataset[i][key] = np.array(client_dataset[i][key])
+            if i == (num_client-1):
+                print("# of labeled data (class {}): {}".format(key, len(client_dataset[i][key])))
+        client_dataset[i]['unlabel'] = np.array(client_dataset[i]['unlabel'])
+        if i == num_client-1:
+            print("# of unlabeled data: {}".format(len(client_dataset[i]['unlabel'])))
+
+    return client_dataset
+
+
+# Resnet-8
+def get_model():
+    def conv_block(out_channels, pool=False, pool_no=2):
+        layers = [Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=is_bias, strides=(1, 1),
+                         kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor)), ReLU()]
+        if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
+        return Sequential(layers)
+    inputs = Input(shape=input_shape)
+    out = conv_block(64)(inputs)
+    out = conv_block(128, pool=True, pool_no=2)(out)
+    out = Sequential([conv_block(128), conv_block(128)])(out) + out
+
+    out = conv_block(256, pool=True)(out)
+    out = conv_block(512, pool=True, pool_no=2)(out)
+    out = Sequential([conv_block(512), conv_block(512)])(out) + out
+
+    out = Sequential([MaxPool2D(pool_size=4), Flatten()])(out)
+    model = Model(inputs=inputs, outputs=out)    
+    return model
+
+
+def calc_euclidian_dists(x, y, root=False):
+    """
+    Calculate euclidian distance between two 3D tensors.
+    Args:
+        x (tf.Tensor): embedding vector
+        y (tf.Tensor): prototype
+    Returns (tf.Tensor): 2-dim tensor with distances.
+    """
+    n = x.shape[0] # data 개수
+    m = y.shape[0] # ptototype 개수
+    x = tf.tile(tf.expand_dims(x, 1), [1, m, 1]) # embedding vector 가 10번 반복됨.
+    y = tf.tile(tf.expand_dims(y, 0), [n, 1, 1]) # 모든 prototype이 있음
+    #return tf.math.pow(tf.reduce_sum(tf.math.pow(x - y, 2), 2), 0.5)
+    return tf.reduce_mean(tf.math.pow(x - y, 2), 2)
+
+
+# compute prototypes for each class
+def get_prototype(z, s_label):
+    z_prototypes = tf.reshape(z[:num_class*s_label], [num_class, s_label, z.shape[-1]])
+    z_prototypes = tf.math.reduce_mean(z_prototypes, axis=1)
+
+    return z_prototypes
+
+
+class Server:
+    
+    def __init__(self, 
+                 global_model,
+                 val_dataset,
+                 test_dataset):
+        self.global_model = global_model
+        self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
+        
+        self.client_model_weight_list = []
+        self.client_prototype_list = []
+   
+    # return: global model weights
+    def get_global_model_weights(self):
+        return self.global_model.get_weights()
+    
+    def get_client_prototype(self):
+        return self.client_prototype_list
+    
+    def reset(self):
+        self.client_model_weight_list = []
+        self.client_prototype_list = []
+
+    # input: client model weight
+    # save client model weights
+    def rec_client_model_weights(self, client_model_weights):
+        self.client_model_weight_list.append(client_model_weights)
+    
+    # input: client prototype
+    # save client prototype
+    def rec_cleint_prototype(self, client_prototype):
+        self.client_prototype_list.append(client_prototype)
+        
+    # FedAvg client weights   
+    def fed_avg(self):
+        global_weights = list()
+        for weights_list_tuple in zip(*self.client_model_weight_list): 
+            global_weights.append(
+                np.array([np.array(w).mean(axis=0) for w in zip(*weights_list_tuple)])
+            )
+        self.global_model.set_weights(global_weights)
+        
+    # FedAvg and evaluate global model with validation set
+    def get_accuracy(self, test_dataset, model):
+        class_idx = list(range(num_class))
+        query_set_label = []
+
+        for idx in class_idx:
+            label_idx = list(range(300))
+            query_set_label.append(np.take(test_dataset[idx], label_idx, axis=0))
+
+        query_set_label = np.array(query_set_label)
+        query_set_label = np.reshape(query_set_label, (num_class * 300,) + input_shape)
+
+        y = np.tile(np.arange(num_class)[:, np.newaxis], (1, 300))
+        y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, num_class), tf.float32))
+
+
+        cat = tf.concat([query_set_label], axis=0)
+        z = model(cat, training=False)
+
+        client_predictions = []
+        for client_proto in self.client_prototype_list:
+            q_dists_client = calc_euclidian_dists(z, client_proto)
+            p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
+
+            client_predictions.append(p_y_unlabel_client)
+
+        # average all distribution
+        client_p = tf.stack(client_predictions, axis=0)
+        averaged_p = tf.reduce_mean(client_p, axis=0)
+        preds = np.argmax(tf.reshape(averaged_p, [num_class, 300, -1]), axis=-1)
+        eq = np.equal(preds, y.astype(int)).astype(np.float32)
+
+        loss = tf.keras.losses.SparseCategoricalCrossentropy()(np.reshape(y.astype(int), [-1]), averaged_p)
+        acc = np.mean(eq)
+
+        return acc, loss
+    
+    def test_accuracy(self, r):
+
+        acc, loss = self.get_accuracy(self.test_dataset, self.global_model)
+
+        print("-----Test Acc: {}, Test Loss: {}".format(acc, loss))
+        with open(path + '/' +exp+'_test_acc' , 'a+') as f:
+            f.write("{},{},{}\n".format(r,acc, loss))
+        return loss, acc
+    
+    def val_accuracy(self, r):
+
+        acc, loss = self.get_accuracy(self.val_dataset, self.global_model)
+          
+        print("-----Val Acc: {}, Val Loss: {}".format(acc, loss))
+        with open(path + '/' +exp+'_val_acc' , 'a+') as f:
+            f.write("{},{},{}\n".format(r,acc, loss))
+        return loss, acc
+    
+    
+def difference_model_norm_2_square(global_model, local_model):
+    """Calculates the squared l2 norm of a model difference (i.e.
+    local_model - global_model)
+    Args:
+        global_model: the model broadcast by the server
+        local_model: the current, in-training model
+
+    Returns: the squared norm
+
+    """
+    model_difference = tf.nest.map_structure(lambda a, b: a - b,
+                                           local_model,
+                                           global_model)
+    squared_norm = tf.square(tf.linalg.global_norm(model_difference))
+    return squared_norm
+
+class Client:
+    def __init__(self, optimizer):
+        self.optimizer = optimizer
+
+    # training using global model weights
+    # return: update client model weights
+    def training(self, 
+                client_dataset, 
+                client_idx,
+                client_model, 
+                global_model_weights,
+                client_protos,
+                rounds):
+        
+        client_model.set_weights(global_model_weights)
+        #K.set_value(self.optimizer.learning_rate, lr)
+        temp_dataset = client_dataset[client_idx]
+
+        # local episode
+        client_acc = 0.0
+        client_loss = 0.0
+        for e in range(local_episode):            
+            support_set_label = []
+            query_set_label = []
+            query_set_unlabel = []
+
+            # sample labeled data
+            for idx in range(num_class):
+                label_idx = np.random.choice(len(temp_dataset[str(idx)]), s_label+q_label, replace=False)
+                support_set_label.append(np.take(temp_dataset[str(idx)], label_idx[:s_label], axis=0))
+                query_set_label.append(np.take(temp_dataset[str(idx)], label_idx[s_label:], axis=0))
+                
+            # sample unlabeled data
+            unlabel_idx = np.random.choice(len(temp_dataset['unlabel']), q_unlabel, replace=False)
+            query_set_unlabel.append(np.take(temp_dataset['unlabel'], unlabel_idx, axis=0))
+            
+            # transform to numpy array
+            support_set_label = np.array(support_set_label)
+            query_set_label = np.array(query_set_label)
+            query_set_unlabel = np.array(query_set_unlabel)
+
+            # reshape for input then concatenate
+            support_set_label = np.reshape(support_set_label, (num_class * s_label,)+input_shape)
+            query_set_label = np.reshape(query_set_label, (num_class * q_label,)+input_shape)
+            query_set_unlabel = np.reshape(query_set_unlabel, (q_unlabel,)+input_shape)
+            
+            # label for one-hot vector
+            y = np.tile(np.arange(num_class)[:, np.newaxis], (1, q_label))
+            y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, num_class), tf.float32))
+            
+            cat = tf.concat([support_set_label, query_set_label, query_set_unlabel], axis=0)
+
+            with tf.GradientTape() as tape:
+
+                # get embedding vector
+                z = client_model(cat, training=True)
+
+                # make prototype
+                prototype = get_prototype(z[:len(support_set_label)], s_label)
+
+                # compute distance between query and prototype
+                z_query = z[len(support_set_label):]
+                q_dists = calc_euclidian_dists(z_query, prototype) # shape: (data 개수, 10)
+                
+                # compute loss (negative log probability)
+                log_p_y = tf.nn.log_softmax(-q_dists[:len(query_set_label)], axis=-1)
+                log_p_y = tf.reshape(log_p_y, [num_class, q_label, -1])
+                loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_onehot, log_p_y), axis=-1), [-1]))
+                
+                # loss for unlabel data
+                if rounds > unlabel_round:
+                    p_y_unlabel = tf.nn.softmax(-q_dists[len(query_set_label):], axis=-1)
+                    client_predictions = []
+                    # make distribution using client's prototype
+                    for i in range(len(client_protos)):
+                        q_dists_client = calc_euclidian_dists(z_query[len(query_set_label):], client_protos[i])
+                        p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
+                        client_predictions.append(p_y_unlabel_client)
+                    
+                    # average all distribution
+                    client_p = tf.stack(client_predictions, axis=0)
+                    averaged_p = tf.reduce_mean(client_p, axis=0)
+                    
+                    # sharpening
+                    sharpened_p = tf.pow(averaged_p, 1.0/T)
+                    # normalize
+                    normalized_p = sharpened_p / tf.reshape(tf.reduce_sum(sharpened_p, axis=1), (-1, 1))
+                    
+                    if loss_type =='MSE':
+                        loss_fn = tf.keras.losses.MeanSquaredError()
+                    elif loss_type == 'CE':
+                        loss_fn = tf.keras.losses.CategoricalCrossentropy()
+                    loss_unlabel = loss_fn(normalized_p, p_y_unlabel)
+                    loss += weight_unlabel * loss_unlabel
+                        
+                eq = tf.cast(tf.equal(
+                        tf.cast(tf.argmax(log_p_y, axis=-1), tf.int32), 
+                        tf.cast(y, tf.int32)), tf.float32)   
+                
+                
+                proxy = (mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
+                loss += proxy
+                
+                client_loss += loss
+                acc = tf.reduce_mean(eq)
+                client_acc += acc
+            
+            # compute gradient
+            grads = tape.gradient(loss, client_model.trainable_weights)
+            self.optimizer.apply_gradients(zip(grads, client_model.trainable_weights))
+        
+                
+        client_acc /= local_episode
+        client_loss /= local_episode
+        
+        # calcuate local prototype to send to server
+        support_set_label = []
+        # use all labeled data
+        for label in range(num_class):
+            label_idx = np.array(list(range(g_s_label)))
+            support_set_label.append(np.take(client_dataset[client_idx][str(label)], label_idx, axis=0))
+
+        support_set_label = np.array(support_set_label)
+        support_set_label = np.reshape(support_set_label, (-1,)+input_shape)
+
+        z = client_model(support_set_label, training=False)
+        local_proto = get_prototype(z, g_s_label)
+
+        del global_model_weights
+        del temp_dataset
+        return client_model.get_weights(), local_proto, client_acc, client_loss
+
+
+train_dataset, val_dataset, test_dataset = get_dataset()
+data_distribution = get_data_distribution()
+client_dataset = get_client_dataset(dataset=train_dataset, ratio=data_distribution)
+
+server = Server(get_model(),
+                val_dataset,
+                test_dataset)
+
+client_list = []
+for c in range(num_client):
+    if opt == 'Adam':
+        client_list.append(Client(Adam(lr=lr)))
+    elif opt == 'RMSprop':
+        client_list.append(Client(RMSprop(learning_rate=lr)))
+    elif opt == 'SGD':
+        client_list.append(Client(SGD(learning_rate=lr, momentum=mom)))
+
+
+#server.global_model = tf.keras.models.load_model('./save/iidFL/iid_FL_mv2_359')
+print("Training Start")
+max_val = 0.0
+cycle = 5
+client_model = get_model()
+for r in range(num_round):
+    '''
+    if (r+1) % 50 == 0:
+        lr /= 2.0
+    '''
+    round_start = time.time()
+    print("Round {}".format(r+1))    
+    
+    # get global model weights & prototypes of other clients
+    client_protos = copy.deepcopy(server.get_client_prototype())
+    global_model_weights = copy.deepcopy(server.get_global_model_weights())
+    server.reset()
+    
+    random.seed(r+seed_num)
+    client_idx = random.sample(range(num_client), num_active_client)
+    
+    total_client_acc = 0.0
+    total_client_loss = 0.0
+    # for each client
+    for c in range(num_active_client):
+        #print("--------Client {}".format(client_idx[c]))
+        
+        # training with global model 
+        client_weight, client_prototype, client_acc, client_loss \
+            = client_list[client_idx[c]].training(
+                                                client_dataset,
+                                                client_idx[c],
+                                                client_model,
+                                                copy.deepcopy(global_model_weights),
+                                                client_protos,
+                                                r)
+        
+        total_client_acc += client_acc
+        total_client_loss += client_loss
+
+        # server receive client weights and prototypes
+        server.rec_client_model_weights(client_weight)
+        server.rec_cleint_prototype(client_prototype)
+
+    total_client_acc /= num_active_client
+    total_client_loss /= num_active_client
+    
+    # FedAvg 
+    server.fed_avg()
+    
+    
+    #server.global_model.save('./save/'+model_name+"_"+str(r))
+
+    print("--Training acc: {}, loss: {}".format(total_client_acc, total_client_loss))
+    with open(path + '/' +exp+'_train_acc' , 'a+') as f:
+        f.write("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
+
+    # val & test accuracy
+    server.val_accuracy(r+1)
+    server.test_accuracy(r+1)
+
+
+    round_end = time.time()
+    print("--Time for Round {}: {}".format(r, round_end-round_start))
