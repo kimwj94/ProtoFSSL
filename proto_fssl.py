@@ -35,9 +35,14 @@ parser.add_argument('--num_unlabel', type=int, default=490, help='Number of unla
 parser.add_argument('--local_episode', type=int, default=10, help='Number of local episode, default: 10')
 parser.add_argument('--unlabel_round', type=int, default=0, help='Starting training round to use unlabeled data(non-inclusive), default: 0')
 parser.add_argument('--optimizer', default='rmsprop', help='Which optimizer to use(rmsprop, sgd, adam), default: rmsprop')
+parser.add_argument('--opt_lr', type=float, default=1e-3, help='Learning rate for optimizer')
+parser.add_argument('--opt_momentum', type=float, default=0, help='Momentum for optimizer')
 parser.add_argument('--num_client', type=int, default=100, help='Number of clients, default: 100')
 parser.add_argument('--num_active_client', type=int, default=5, help='Number of active clients, default: 5')
 parser.add_argument('--unlabel_loss_type', default='CE', help='Loss type to train unlabeled data, default: CE')
+parser.add_argument('--refine_at_begin', action='store_true', help='Prototype refinement is done at the beginning of the epoch')
+parser.add_argument('--keep_proto_rounds', type=int, default=1, help='Number of old prototypes to keep, default: 1')
+
 
 FLAGS = parser.parse_args()
 
@@ -78,6 +83,7 @@ UNLABEL_ROUND = FLAGS.unlabel_round # from what round to use unlabeled data
 UNLABEL_LOSS_TYPE = FLAGS.unlabel_loss_type # loss for unlabeled data. MSE or CE
 
 OPT = FLAGS.optimizer # optimizer
+KEEP_PROTO_ROUNDS = FLAGS.keep_proto_rounds
 
 # get model
 def get_model(model_name='res9', input_shape=(32,32,3)):
@@ -122,20 +128,20 @@ if __name__=='__main__':
                     val_dataset,
                     test_dataset,
                     num_class=NUM_CLASS,
-                    input_shape=INPUT_SHAPE)
+                    input_shape=INPUT_SHAPE,
+                    num_active_client=NUM_ACTIVE_CLIENT,
+                    keep_proto_rounds=KEEP_PROTO_ROUNDS)
 
     client_list = []
 
 
-    if OPT == 'rmsprop':
-        lr=1e-3
-        optim = RMSprop(learning_rate=lr)
+    if OPT == 'rmsprop':        
+        optim = RMSprop(learning_rate=FLAGS.opt_lr, momentum=FLAGS.opt_momentum)
     elif OPT == 'sgd':
-        lr, mom = 0.1, 0.7
-        optim = SGD(learning_rate=lr, momentum=mom)
-    elif OPT == 'adam':
-        lr=1e-3
-        optim = Adam(lr=lr)
+        #lr, mom = 0.1, 0.7
+        optim = SGD(learning_rate=FLAGS.opt_lr, momentum=FLAGS.opt_momentum)
+    elif OPT == 'adam':        
+        optim = Adam(lr=FLAGS.opt_lr)
 
     if UNLABEL_LOSS_TYPE =='MSE':
         unlabel_loss_fn = tf.keras.losses.MeanSquaredError()
@@ -153,7 +159,8 @@ if __name__=='__main__':
                                     local_episode=LOCAL_EPISODE,
                                     input_shape=INPUT_SHAPE,
                                     unlabel_round=UNLABEL_ROUND,
-                                    unlabel_loss_fn=unlabel_loss_fn                                
+                                    unlabel_loss_fn=unlabel_loss_fn,
+                                    num_round=NUM_ROUND                                
                                     ))
 
     print("Training Start")
@@ -169,14 +176,30 @@ if __name__=='__main__':
     for r in range(NUM_ROUND):
         round_start = time.time()
         print("Round {}".format(r+1))    
-        
-        # get global model weights & prototypes of other clients
-        client_protos = copy.deepcopy(server.get_client_prototype())
+                
         global_model_weights = copy.deepcopy(server.get_global_model_weights())
-        server.reset()
+        server.reset_weight()
+        #server.reset_prototype()
         
         random.seed(r+SEED_NUM)
         client_idx = random.sample(range(NUM_CLIENT), NUM_ACTIVE_CLIENT)
+
+        if FLAGS.refine_at_begin:
+            # for each client
+            for c in range(NUM_ACTIVE_CLIENT):
+                client_prototype = client_list[client_idx[c]].calc_proto(
+                                                        client_dataset,
+                                                        client_idx[c],
+                                                        client_model,
+                                                        copy.deepcopy(global_model_weights))
+
+            server.rec_cleint_prototype(client_prototype)
+
+        #Remove old prototypes
+        server.update_client_prototypes()                   
+
+        # get global model weights & prototypes of other clients
+        client_protos = copy.deepcopy(server.get_client_prototype())
         
         total_client_acc = 0.0
         total_client_loss = 0.0
@@ -241,5 +264,6 @@ if __name__=='__main__':
         f.write("expname: {}, time: {}, dataset: {}, model: {}, maxround: {}, maxval: {:.6f}, maxtest: {:.6f}\n"\
             .format(FLAGS.exp_name, dt_string, FLAGS.dataset, model_name, max_round, max_val, max_test))
     f.close()
+    print("Max test accuracy: ", max_test)
 
 

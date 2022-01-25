@@ -13,7 +13,9 @@ class Server:
                 val_dataset,
                 test_dataset,
                 num_class=10,
-                input_shape=(32,32,3)):
+                input_shape=(32,32,3),
+                num_active_client=5,
+                keep_proto_rounds=1):
         self.global_model = global_model
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
@@ -22,6 +24,8 @@ class Server:
         self.client_model_weight_list = []
         self.client_prototype_list = []
         self.input_shape = input_shape
+        self.num_active_client = num_active_client
+        self.keep_proto_rounds = keep_proto_rounds
    
     # return: global model weights
     def get_global_model_weights(self):
@@ -30,9 +34,15 @@ class Server:
     def get_client_prototype(self):
         return self.client_prototype_list
     
-    def reset(self):
+    def reset_weight(self):
         self.client_model_weight_list = []
+    
+    def reset_prototype(self):
         self.client_prototype_list = []
+
+    def update_client_prototypes(self):
+        if len(self.client_prototype_list) > self.num_active_client * self.keep_proto_rounds:
+            self.client_prototype_list = self.client_prototype_list[-self.num_active_client * self.keep_proto_rounds:]
 
     # input: client model weight
     # save client model weights
