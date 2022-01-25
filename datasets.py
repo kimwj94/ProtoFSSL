@@ -6,6 +6,9 @@ import tensorflow_datasets as tfds
 SEED_NUM = 1001
 # get train/validation/test dataset
 def get_cifar10_dataset():
+
+    cifar10_mean = (0.4914, 0.4822, 0.4465)
+    cifar10_std = (0.2471, 0.2435, 0.2616)
     
     (train_images, train_labels), (test_images, test_labels) = cifar10.load_data()
     num_class = 10
