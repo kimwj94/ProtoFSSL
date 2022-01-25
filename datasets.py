@@ -7,10 +7,11 @@ SEED_NUM = 1001
 # get train/validation/test dataset
 def get_cifar10_dataset():
 
-    cifar10_mean = (0.4914, 0.4822, 0.4465)
-    cifar10_std = (0.2471, 0.2435, 0.2616)
+    cifar10_mean = np.array([0.4914, 0.4822, 0.4465])
+    cifar10_std = np.array([0.2471, 0.2435, 0.2616])
     
     (train_images, train_labels), (test_images, test_labels) = cifar10.load_data()
+
     num_class = 10
     input_shape = (32,32,3)
 
@@ -30,6 +31,9 @@ def get_cifar10_dataset():
     labels = tf.keras.utils.to_categorical(labels, num_class)
 
     images /= 255.0
+
+    images -= cifar10_mean
+    images /= cifar10_std
 
     train_dataset = []
     val_dataset = []

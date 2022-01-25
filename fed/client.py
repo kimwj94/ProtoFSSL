@@ -1,6 +1,8 @@
 import os
+import copy
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import backend as K
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -20,7 +22,8 @@ class Client:
                 input_shape=(32,32,3),
                 unlabel_round=0,
                 weight_unlabel=3e-1,
-                unlabel_loss_fn=tf.keras.losses.CategoricalCrossentropy()):
+                unlabel_loss_fn=tf.keras.losses.CategoricalCrossentropy(),
+                num_round=300):
         self.optimizer = optimizer
         self.s_label = s_label
         self.q_label = q_label
@@ -32,6 +35,45 @@ class Client:
         self.unlabel_round = unlabel_round
         self.weight_unlabel = weight_unlabel
         self.num_label = num_label
+        self.base_lr = copy.deepcopy(optimizer.lr.numpy())        
+        self.num_round = num_round
+
+    # training using global model weights
+    # return: update client model weights
+    def calc_proto(self, 
+                client_dataset, 
+                client_idx,
+                client_model, 
+                global_model_weights
+                ):
+        
+        client_model.set_weights(global_model_weights)
+        #K.set_value(self.optimizer.learning_rate, lr)
+        temp_dataset = client_dataset[client_idx]
+        set_label = []
+        
+        # sample labeled data
+        for idx in range(self.num_class):
+            label_idx = np.arange(self.num_label)
+            set_label.append(np.take(temp_dataset[str(idx)], label_idx, axis=0))
+            
+        
+        # transform to numpy array
+        set_label = np.array(set_label)
+
+        # reshape for input then concatenate
+        set_label = np.reshape(set_label, (self.num_class * self.num_label,)+self.input_shape)
+
+        # get embedding vector
+        z = client_model(set_label, training=False)
+        local_proto = get_prototype(z, self.num_label, self.num_class)
+
+        return local_proto
+
+    def set_learning_rate(self, curr_round):
+        curr_lr = self.base_lr * np.cos(7 * np.pi * curr_round / (16 * self.num_round))        
+        curr_lr = max(curr_lr, 1e-6)        
+        K.set_value(self.optimizer.learning_rate, curr_lr)
 
     # training using global model weights
     # return: update client model weights
@@ -44,7 +86,7 @@ class Client:
                 rounds):
         
         client_model.set_weights(global_model_weights)
-        #K.set_value(self.optimizer.learning_rate, lr)
+        self.set_learning_rate(rounds)
         temp_dataset = client_dataset[client_idx]
 
         # local episode
