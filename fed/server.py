@@ -15,7 +15,8 @@ class Server:
                 num_class=10,
                 input_shape=(32,32,3),
                 num_active_client=5,
-                keep_proto_rounds=1):
+                keep_proto_rounds=1,
+                is_sl=False):
         self.global_model = global_model
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
@@ -26,6 +27,7 @@ class Server:
         self.input_shape = input_shape
         self.num_active_client = num_active_client
         self.keep_proto_rounds = keep_proto_rounds
+        self.is_sl = is_sl
    
     # return: global model weights
     def get_global_model_weights(self):
@@ -114,11 +116,57 @@ class Server:
         final_acc /= div
         final_loss /= div
 
-        return acc, loss
+        return final_acc, final_loss
+
+    # FedAvg and evaluate global model with validation set
+    def get_accuracy_sl(self, test_dataset, model):
+
+        class_idx = list(range(self.num_class))
+        
+        per_class = len(test_dataset[0])
+
+        final_acc = 0.0
+        final_loss = 0.0
+
+        total_num = per_class * self.num_class        
+        div = 10
+        per_class_div = per_class // div
+        for i in range(div):
+            iamges = []
+
+            for idx in class_idx:
+                label_idx = list(range(i*per_class_div, (i+1)*per_class_div))
+                iamges.append(np.take(test_dataset[idx], label_idx, axis=0))
+
+            iamges = np.array(iamges)
+            iamges = np.reshape(iamges, (self.num_class * per_class_div,) + self.input_shape)
+
+            labels = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, per_class_div))
+            labels = np.reshape(labels.astype(int), [-1])
+
+            z = model(iamges, training=False)
+
+            loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+            loss = loss_fn(labels, z).numpy()
+            
+            eq = tf.cast(tf.equal(
+                        tf.cast(tf.argmax(z, axis=-1), tf.int32), 
+                        tf.cast(labels, tf.int32)), tf.float32)               
+            acc = tf.reduce_mean(eq)
+            final_acc += acc
+            final_loss += loss
+
+        final_acc /= div
+        final_loss /= div
+        
+        return final_acc, final_loss
 
     def test_accuracy(self, r):
 
-        acc, loss = self.get_accuracy(self.test_dataset, self.global_model)
+        if self.is_sl:
+            acc, loss = self.get_accuracy_sl(self.test_dataset, self.global_model)
+        else:
+            acc, loss = self.get_accuracy(self.test_dataset, self.global_model)
 
         print("-----Test Acc: {}, Test Loss: {}".format(acc, loss))
         #with open(path + '/' +exp+'_test_acc' , 'a+') as f:
@@ -127,7 +175,10 @@ class Server:
     
     def val_accuracy(self, r):
 
-        acc, loss = self.get_accuracy(self.val_dataset, self.global_model)
+        if self.is_sl:
+            acc, loss = self.get_accuracy_sl(self.val_dataset, self.global_model)
+        else:
+            acc, loss = self.get_accuracy(self.val_dataset, self.global_model)
           
         print("-----Val Acc: {}, Val Loss: {}".format(acc, loss))
         #with open(path + '/' +exp+'_val_acc' , 'a+') as f:

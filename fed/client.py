@@ -3,11 +3,13 @@ import copy
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
+import math
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 from utils import calc_euclidian_dists, get_prototype
 
+from scipy.ndimage.interpolation import rotate, shift
 
 
 class Client:
@@ -23,7 +25,9 @@ class Client:
                 unlabel_round=0,
                 weight_unlabel=3e-1,
                 unlabel_loss_fn=tf.keras.losses.CategoricalCrossentropy(),
-                num_round=300):
+                num_round=300,
+                warmup_episode=0,
+                sl_loss_fn=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)):
         self.optimizer = optimizer
         self.s_label = s_label
         self.q_label = q_label
@@ -37,6 +41,8 @@ class Client:
         self.num_label = num_label
         self.base_lr = copy.deepcopy(optimizer.lr.numpy())        
         self.num_round = num_round
+        self.warmup_episode = warmup_episode
+        self.sl_loss_fn = sl_loss_fn
 
     # training using global model weights
     # return: update client model weights
@@ -75,6 +81,23 @@ class Client:
         curr_lr = max(curr_lr, 1e-6)        
         K.set_value(self.optimizer.learning_rate, curr_lr)
 
+    def augment(self, dataset, round):
+        for key in dataset:
+            images = dataset[key]
+            # Flip lr
+            np.random.seed(round)
+            sampled = np.random.choice(len(images), int(len(images) * 0.25), replace=False)
+            images[sampled] = np.fliplr(images[sampled])
+            
+            # Flip ud
+            sampled = np.random.choice(len(images), int(len(images) * 0.25), replace=False)
+            images[sampled] = np.flipud(images[sampled])
+            
+            # Random shifts
+            images = np.array([shift(img, [np.random.randint(-2, 2), np.random.randint(-2, 2), 0]) for img in images]) # random shift
+            dataset[key] = images
+        return dataset
+
     # training using global model weights
     # return: update client model weights
     def training(self, 
@@ -86,8 +109,9 @@ class Client:
                 rounds):
         
         client_model.set_weights(global_model_weights)
-        self.set_learning_rate(rounds)
+        #self.set_learning_rate(rounds)
         temp_dataset = client_dataset[client_idx]
+        #temp_dataset = self.augment(temp_dataset, rounds)
 
         # local episode
         client_acc = 0.0
@@ -108,9 +132,9 @@ class Client:
             query_set_unlabel.append(np.take(temp_dataset['unlabel'], unlabel_idx, axis=0))
             
             # transform to numpy array
-            support_set_label = np.array(support_set_label)
-            query_set_label = np.array(query_set_label)
-            query_set_unlabel = np.array(query_set_unlabel)
+            support_set_label = np.array(support_set_label) #/ 255.0
+            query_set_label = np.array(query_set_label) #/ 255.0
+            query_set_unlabel = np.array(query_set_unlabel) #/ 255.0
 
             # reshape for input then concatenate
             support_set_label = np.reshape(support_set_label, (self.num_class * self.s_label,)+self.input_shape)
@@ -141,7 +165,7 @@ class Client:
                 loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_onehot, log_p_y), axis=-1), [-1]))
                 
                 # loss for unlabel data
-                if rounds > self.unlabel_round:
+                if rounds > self.unlabel_round and e >= self.warmup_episode:
                     p_y_unlabel = tf.nn.softmax(-q_dists[len(query_set_label):], axis=-1)
                     client_predictions = []
                     # make distribution using client's prototype
@@ -184,9 +208,9 @@ class Client:
         # use all labeled data
         for label in range(self.num_class):
             label_idx = np.array(list(range(self.num_label)))
-            support_set_label.append(np.take(client_dataset[client_idx][str(label)], label_idx, axis=0))
+            support_set_label.append(np.take(temp_dataset[str(label)], label_idx, axis=0))
 
-        support_set_label = np.array(support_set_label)
+        support_set_label = np.array(support_set_label) #/255.0
         support_set_label = np.reshape(support_set_label, (-1,)+self.input_shape)
 
         z = client_model(support_set_label, training=False)
@@ -195,3 +219,73 @@ class Client:
         del global_model_weights
         del temp_dataset
         return client_model.get_weights(), local_proto, client_acc, client_loss
+
+
+    # training using global model weights
+    # return: update client model weights
+    def supervised_training(self, 
+                client_dataset, 
+                client_labels,
+                client_idx,
+                client_model, 
+                global_model_weights,                
+                rounds):
+
+
+        client_model.set_weights(global_model_weights)
+        #self.set_learning_rate(rounds)
+        temp_dataset = client_dataset[client_idx]
+        temp_labels = client_labels[client_idx]
+        #temp_dataset = self.augment(temp_dataset, rounds)
+
+        # local episode
+        client_acc = 0.0
+        client_loss = 0.0
+
+        batch_size = 32
+        train_step = math.ceil((self.num_label * self.num_class) / batch_size)
+
+        
+        images = []
+        labels = []            
+
+        # sample labeled data
+        for idx in range(self.num_class):
+            images.append(temp_dataset[str(idx)])
+            labels.append(temp_labels[str(idx)])
+
+        images = np.concatenate(images, axis=0)
+        labels = np.concatenate(labels, axis=0)        
+             
+        images = np.reshape(images, (-1,) + self.input_shape)
+        labels = np.reshape(labels, (-1))        
+
+        np.random.seed(rounds)  
+        idx = np.random.permutation(len(images))
+        images = images[idx]
+        labels = labels[idx]
+
+        for e in range(self.local_episode):            
+            for s in range(train_step):
+                with tf.GradientTape() as tape:
+                    batch_labels = labels[s*batch_size:(s+1)*batch_size]
+                    batch_images = images[s*batch_size:(s+1)*batch_size]
+                    predictions = client_model(batch_images, training=True)
+                    loss = self.sl_loss_fn(batch_labels, predictions)
+                grads = tape.gradient(loss, client_model.trainable_weights)
+                self.optimizer.apply_gradients(zip(grads, client_model.trainable_weights))
+
+                eq = tf.cast(tf.equal(
+                        tf.cast(tf.argmax(predictions, axis=-1), tf.int32), 
+                        tf.cast(batch_labels, tf.int32)), tf.float32) 
+
+                client_loss += loss * batch_labels.shape[0]
+                acc = tf.reduce_sum(eq)
+                client_acc += acc
+
+        del global_model_weights
+
+        client_acc /= (self.local_episode * images.shape[0])
+        client_loss /= (self.local_episode * images.shape[0])
+
+        return client_model.get_weights(), client_acc, client_loss
