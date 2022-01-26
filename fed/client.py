@@ -281,6 +281,11 @@ class Client:
                     batch_images = images[s*batch_size:(s+1)*batch_size]
                     predictions = client_model(batch_images, training=True)
                     loss = self.sl_loss_fn(batch_labels, predictions)
+
+                    if self.fl_framework == 'fedprox':
+                        proxy = (self.mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
+                        loss += proxy
+                
                 grads = tape.gradient(loss, client_model.trainable_weights)
                 self.optimizer.apply_gradients(zip(grads, client_model.trainable_weights))
 
