@@ -9,6 +9,10 @@ You can start training by
 ```
 python proto_fssl.py --exp_name test_cifar10 --dataset cifar10 --model res9 --num_round 5
 ```
+If you want FedProx framework, (default is FedAvg)
+```
+python proto_fssl.py --exp_name test_cifar10 --dataset cifar10 --model res9 --num_round 5 --fl_framework fedprox --mu 1e-3
+```
 
 or use bash file
 ```
