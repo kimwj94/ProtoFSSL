@@ -24,3 +24,20 @@ def get_prototype(z, s_label, num_class):
     z_prototypes = tf.math.reduce_mean(z_prototypes, axis=1)
 
     return z_prototypes
+
+
+def difference_model_norm_2_square(global_model, local_model):
+    """Calculates the squared l2 norm of a model difference (i.e.
+    local_model - global_model)
+    Args:
+        global_model: the model broadcast by the server
+        local_model: the current, in-training model
+
+    Returns: the squared norm
+
+    """
+    model_difference = tf.nest.map_structure(lambda a, b: a - b,
+                                           local_model,
+                                           global_model)
+    squared_norm = tf.square(tf.linalg.global_norm(model_difference))
+    return squared_norm

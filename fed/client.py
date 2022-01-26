@@ -7,7 +7,7 @@ import math
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-from utils import calc_euclidian_dists, get_prototype
+from utils import calc_euclidian_dists, get_prototype, difference_model_norm_2_square
 
 from scipy.ndimage.interpolation import rotate, shift
 
@@ -27,7 +27,10 @@ class Client:
                 unlabel_loss_fn=tf.keras.losses.CategoricalCrossentropy(),
                 num_round=300,
                 warmup_episode=0,
-                sl_loss_fn=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)):
+                sl_loss_fn=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                fl_framework='fedavg',
+                mu=None):
+        
         self.optimizer = optimizer
         self.s_label = s_label
         self.q_label = q_label
@@ -187,7 +190,11 @@ class Client:
 
                     loss_unlabel = self.unlabel_loss_fn(normalized_p, p_y_unlabel)
                     loss += self.weight_unlabel * loss_unlabel
-                        
+                   
+                if fl_framework == 'fedprox':
+                    proxy = (mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
+                    loss += proxy
+                    
                 eq = tf.cast(tf.equal(
                         tf.cast(tf.argmax(log_p_y, axis=-1), tf.int32), 
                         tf.cast(y, tf.int32)), tf.float32)   
