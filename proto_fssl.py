@@ -46,6 +46,9 @@ parser.add_argument('--warmup_episode', type=int, default=0, help='Warmup episod
 parser.add_argument('--l2_factor', type=float, default=1e-4, help='L2 Regularization factor, default: 1e-4')
 parser.add_argument('--is_sl', action='store_true', help='Whether to do supervised learning')
 
+parser.add_argument('--fl_framework', default='fedavg', help='Federated Learning framework. One of [fedavg, fedprox], default: fedavg')
+parser.add_argument('--mu', type=float, default=1e-3, help='regularization hyperparameter for fedprox')
+
 
 FLAGS = parser.parse_args()
 
@@ -167,7 +170,9 @@ if __name__=='__main__':
                                     unlabel_round=UNLABEL_ROUND,
                                     unlabel_loss_fn=unlabel_loss_fn,
                                     num_round=NUM_ROUND,
-                                    warmup_episode=WARMUP_EPISODE                                
+                                    warmup_episode=WARMUP_EPISODE,
+                                    fl_framework=FLAGS.fl_framework,
+                                    mu=FLAGS.mu
                                     ))
 
     print("Training Start")
