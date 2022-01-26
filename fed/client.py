@@ -46,6 +46,8 @@ class Client:
         self.num_round = num_round
         self.warmup_episode = warmup_episode
         self.sl_loss_fn = sl_loss_fn
+        self.fl_framework=fl_framework
+        self.mu=mu
 
     # training using global model weights
     # return: update client model weights
@@ -191,8 +193,8 @@ class Client:
                     loss_unlabel = self.unlabel_loss_fn(normalized_p, p_y_unlabel)
                     loss += self.weight_unlabel * loss_unlabel
                    
-                if fl_framework == 'fedprox':
-                    proxy = (mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
+                if self.fl_framework == 'fedprox':
+                    proxy = (self.mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
                     loss += proxy
                     
                 eq = tf.cast(tf.equal(
