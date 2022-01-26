@@ -42,6 +42,9 @@ parser.add_argument('--num_active_client', type=int, default=5, help='Number of 
 parser.add_argument('--unlabel_loss_type', default='CE', help='Loss type to train unlabeled data, default: CE')
 parser.add_argument('--refine_at_begin', action='store_true', help='Prototype refinement is done at the beginning of the epoch')
 parser.add_argument('--keep_proto_rounds', type=int, default=1, help='Number of old prototypes to keep, default: 1')
+parser.add_argument('--warmup_episode', type=int, default=0, help='Warmup episode before using unlabeled data, default: 0')
+parser.add_argument('--l2_factor', type=float, default=1e-4, help='L2 Regularization factor, default: 1e-4')
+parser.add_argument('--is_sl', action='store_true', help='Whether to do supervised learning')
 
 
 FLAGS = parser.parse_args()
@@ -84,9 +87,10 @@ UNLABEL_LOSS_TYPE = FLAGS.unlabel_loss_type # loss for unlabeled data. MSE or CE
 
 OPT = FLAGS.optimizer # optimizer
 KEEP_PROTO_ROUNDS = FLAGS.keep_proto_rounds
+WARMUP_EPISODE = FLAGS.warmup_episode
 
 # get model
-def get_model(model_name='res9', input_shape=(32,32,3)):
+def get_model(model_name='res9', input_shape=(32,32,3), l2_factor=1e-4, is_sl=False, num_classes=10):
     
     #Define downsample sizes
     if input_shape[0] == 32:
@@ -95,11 +99,11 @@ def get_model(model_name='res9', input_shape=(32,32,3)):
         pool_list=[3,2,4,4]
     
     if model_name == 'res9':    
-        model = ResNet9(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
+        model = ResNet9(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, l2_factor=l2_factor, is_sl=is_sl, num_classes=num_classes)
     elif model_name == 'res18':
-        model = ResNet18(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
+        model = ResNet18(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, l2_factor=l2_factor, is_sl=is_sl, num_classes=num_classes)
     elif model_name == 'wres28x2':
-        model = WideResNet28x2(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list)
+        model = WideResNet28x2(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, is_sl=is_sl, num_classes=num_classes)
 
     dummy_in = tf.convert_to_tensor(np.random.random((1,) + input_shape))
     out = model(dummy_in) 
@@ -115,12 +119,13 @@ if __name__=='__main__':
     # Get starting time
     startTime = datetime.now()
 
-    client_dataset, val_dataset, test_dataset, NUM_CLASS, INPUT_SHAPE = get_dataset(dataset_name=FLAGS.dataset,
+    client_dataset, val_dataset, test_dataset, NUM_CLASS, INPUT_SHAPE, client_labels = get_dataset(dataset_name=FLAGS.dataset,
                                                                                     is_iid=IS_IID,
                                                                                     num_client=NUM_CLIENT,
                                                                                     num_label=NUM_LABEL,
-                                                                                    num_unlabel=NUM_UNLABEL)
-    server_model = get_model(FLAGS.model, INPUT_SHAPE)
+                                                                                    num_unlabel=NUM_UNLABEL,
+                                                                                    is_sl=FLAGS.is_sl)
+    server_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl)
     print('Model built:', FLAGS.model)   
     print(server_model.summary())
 
@@ -130,7 +135,8 @@ if __name__=='__main__':
                     num_class=NUM_CLASS,
                     input_shape=INPUT_SHAPE,
                     num_active_client=NUM_ACTIVE_CLIENT,
-                    keep_proto_rounds=KEEP_PROTO_ROUNDS)
+                    keep_proto_rounds=KEEP_PROTO_ROUNDS,
+                    is_sl=FLAGS.is_sl)
 
     client_list = []
 
@@ -160,14 +166,15 @@ if __name__=='__main__':
                                     input_shape=INPUT_SHAPE,
                                     unlabel_round=UNLABEL_ROUND,
                                     unlabel_loss_fn=unlabel_loss_fn,
-                                    num_round=NUM_ROUND                                
+                                    num_round=NUM_ROUND,
+                                    warmup_episode=WARMUP_EPISODE                                
                                     ))
 
     print("Training Start")
     max_val, max_test = 0.0, 0.0
     max_round = 0
     cycle = 1
-    client_model = get_model(FLAGS.model, INPUT_SHAPE)
+    client_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl)
 
     train_record_list = []
     val_record_list = []
@@ -194,33 +201,53 @@ if __name__=='__main__':
                                                         copy.deepcopy(global_model_weights))
 
             server.rec_cleint_prototype(client_prototype)
-
-        #Remove old prototypes
-        server.update_client_prototypes()                   
-
-        # get global model weights & prototypes of other clients
-        client_protos = copy.deepcopy(server.get_client_prototype())
         
         total_client_acc = 0.0
         total_client_loss = 0.0
-        # for each client
-        for c in range(NUM_ACTIVE_CLIENT):      
-            # training with global model 
-            client_weight, client_prototype, client_acc, client_loss \
-                = client_list[client_idx[c]].training(
-                                                    client_dataset,
-                                                    client_idx[c],
-                                                    client_model,
-                                                    copy.deepcopy(global_model_weights),
-                                                    client_protos,
-                                                    r)
-            
-            total_client_acc += client_acc
-            total_client_loss += client_loss
 
-            # server receive client weights and prototypes
-            server.rec_client_model_weights(client_weight)
-            server.rec_cleint_prototype(client_prototype)
+        if FLAGS.is_sl:
+             # for each client
+            for c in range(NUM_ACTIVE_CLIENT):      
+                # training with global model 
+                client_weight, client_acc, client_loss \
+                    = client_list[client_idx[c]].supervised_training(
+                                                        client_dataset,
+                                                        client_labels,
+                                                        client_idx[c],
+                                                        client_model,
+                                                        copy.deepcopy(global_model_weights),                                                        
+                                                        r)
+                
+                total_client_acc += client_acc
+                total_client_loss += client_loss
+
+                # server receive client weights and prototypes
+                server.rec_client_model_weights(client_weight)
+        else:
+            #Remove old prototypes
+            server.update_client_prototypes()                   
+
+            # get global model weights & prototypes of other clients
+            client_protos = copy.deepcopy(server.get_client_prototype())
+            # for each client
+            for c in range(NUM_ACTIVE_CLIENT):      
+                # training with global model 
+                client_weight, client_prototype, client_acc, client_loss \
+                    = client_list[client_idx[c]].training(
+                                                        client_dataset,
+                                                        client_idx[c],
+                                                        client_model,
+                                                        copy.deepcopy(global_model_weights),
+                                                        client_protos,
+                                                        r)
+                
+                total_client_acc += client_acc
+                total_client_loss += client_loss
+
+                # server receive client weights and prototypes
+                server.rec_client_model_weights(client_weight)
+                if not FLAGS.refine_at_begin:
+                    server.rec_cleint_prototype(client_prototype)
 
         total_client_acc /= NUM_ACTIVE_CLIENT
         total_client_loss /= NUM_ACTIVE_CLIENT
