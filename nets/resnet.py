@@ -6,25 +6,37 @@ from tensorflow.keras.initializers import VarianceScaling
 from tensorflow.keras.regularizers import l2
 import tensorflow_addons as tfa
 
+def bn_choice(bn=None):
+    if bn is None:
+        return Lambda(lambda x: x)
+    elif bn == 'bn':
+        return BatchNormalization(axis=-1)
+    elif bn == 'sbn':
+        return BatchNormalization(axis=-1, momentum=0)
+    elif bn == 'gn':
+        return tfa.layers.GroupNormalization(groups=32, axis=-1)
 
-"""
 class ResNet18(tf.keras.Model):
 
-    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4]):
+    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4], l2_factor=1e-4, is_sl=False, num_classes=10):
         super().__init__()
-        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn)
-        self.res1 = Sequential([self.conv_block(64, bn=bn), self.conv_block(64, bn=bn)])
-        self.res2 = Sequential([self.conv_block(64, bn=bn), self.conv_block(64, bn=bn)])
-        self.res3 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn)
-        self.res4 = self.conv_block(128, bn=bn)
-        self.res5 = Sequential([self.conv_block(128, bn=bn), self.conv_block(128, bn=bn)])
-        self.res6 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn)
-        self.res7 = self.conv_block(256, bn=bn)
-        self.res8 = Sequential([self.conv_block(256, bn=bn), self.conv_block(256, bn=bn)])
-        self.res9 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn)
-        self.res10 = self.conv_block(512, bn=bn)
-        self.res11 = Sequential([self.conv_block(512, bn=bn), self.conv_block(512, bn=bn)])
+        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn, l2_factor=l2_factor)
+        self.res1 = Sequential([self.conv_block(64, bn=bn, l2_factor=l2_factor), self.conv_block(64, bn=bn, l2_factor=l2_factor)])
+        self.res2 = Sequential([self.conv_block(64, bn=bn, l2_factor=l2_factor), self.conv_block(64, bn=bn, l2_factor=l2_factor)])
+        self.res3 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn, l2_factor=l2_factor)
+        self.res4 = self.conv_block(128, bn=bn, l2_factor=l2_factor)
+        self.res5 = Sequential([self.conv_block(128, bn=bn, l2_factor=l2_factor), self.conv_block(128, bn=bn, l2_factor=l2_factor)])
+        self.res6 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn, l2_factor=l2_factor)
+        self.res7 = self.conv_block(256, bn=bn, l2_factor=l2_factor)
+        self.res8 = Sequential([self.conv_block(256, bn=bn, l2_factor=l2_factor), self.conv_block(256, bn=bn, l2_factor=l2_factor)])
+        self.res9 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn, l2_factor=l2_factor)
+        self.res10 = self.conv_block(512, bn=bn, l2_factor=l2_factor)
+        self.res11 = Sequential([self.conv_block(512, bn=bn, l2_factor=l2_factor), self.conv_block(512, bn=bn, l2_factor=l2_factor)])
         self.res12 = Sequential([MaxPool2D(pool_size=pool_list[3]), Flatten()])
+        
+        self.is_sl = is_sl
+        if self.is_sl:
+            self.fc = Dense(num_classes, use_bias=True, activation='softmax')
 
     def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None):
         layers = []
@@ -35,13 +47,9 @@ class ResNet18(tf.keras.Model):
             layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
                             kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor), input_shape=input_shape))
         
-        if bn == 'bn':
-            layers.append(BatchNormalization(axis=-1))
-        elif bn == 'gn':
-            layers.append(tfa.layers.GroupNormalization(groups=32, axis=-1))
-        elif bn == 'sbn':
-            layers.append(BatchNormalization(axis=-1, momentum=0))
-
+        
+        layers.append(bn_choice(bn))
+        
         layers.append(ReLU())        
         if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
 
@@ -65,30 +73,27 @@ class ResNet18(tf.keras.Model):
         out = self.res11(out) + out
 
         out = self.res12(out)
-        return out
-"""
 
-def bn_choice(bn=None):
-    if bn is None:
-        return Lambda(lambda x: x)
-    elif bn == 'bn':
-        return BatchNormalization(axis=-1)
-    elif bn == 'sbn':
-        return BatchNormalization(axis=-1, momentum=0)
-    elif bn == 'gn':
-        return tfa.layers.GroupNormalization(groups=32, axis=-1)
+        if self.is_sl:
+            out = self.fc(out)
+        return out
+
+
 
 class ResNet9(tf.keras.Model):
 
-    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4]):
+    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4], l2_factor=1e-4, is_sl=False, num_classes=10):
         super().__init__()
-        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn)
-        self.res1 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn)
-        self.res2 = Sequential([self.conv_block(128, bn=bn), self.conv_block(128, bn=bn)])
-        self.res3 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn)
-        self.res4 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn)
-        self.res5 = Sequential([self.conv_block(512, bn=bn), self.conv_block(512, bn=bn)])
+        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn, l2_factor=l2_factor)
+        self.res1 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn, l2_factor=l2_factor)
+        self.res2 = Sequential([self.conv_block(128, bn=bn, l2_factor=l2_factor), self.conv_block(128, bn=bn, l2_factor=l2_factor)])
+        self.res3 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn, l2_factor=l2_factor)
+        self.res4 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn, l2_factor=l2_factor)
+        self.res5 = Sequential([self.conv_block(512, bn=bn, l2_factor=l2_factor), self.conv_block(512, bn=bn, l2_factor=l2_factor)])
         self.res6 = Sequential([MaxPool2D(pool_size=pool_list[3]), Flatten()])
+        self.is_sl = is_sl
+        if self.is_sl:
+            self.fc = Dense(num_classes, use_bias=True, activation='softmax')
 
     def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None):
         layers = []
@@ -121,6 +126,8 @@ class ResNet9(tf.keras.Model):
         out = self.res5(out) + out
 
         out = self.res6(out)
+        if self.is_sl:
+            out = self.fc(out)
         
         return out
 
@@ -344,10 +351,10 @@ class ResNet(tf.keras.Model):
 
         return x
 
-
+"""
 def ResNet18(input_shape, bn=None, pool_list=[2,2,2,4]):
     return ResNet(BasicBlock, [2,2,2,2], input_shape=input_shape, bn=bn, pool_list=pool_list)
-
+"""
 
 def WideResNet28x2(input_shape, bn=None, pool_list=[2,2,2,4], **kwargs):
     kwargs["width_per_group"] = 64 * 2
