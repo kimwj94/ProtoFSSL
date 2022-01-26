@@ -17,30 +17,30 @@
 
 
 #Ablations upper bound
-for i in {1..3}
-do
-    python proto_fssl.py --exp_name fedavg_cifar10_bn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type bn
-    python proto_fssl.py --exp_name fedavg_cifar10_bn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type bn
-    python proto_fssl.py --exp_name fedavg_cifar10_gn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type gn
-    python proto_fssl.py --exp_name fedavg_cifar10_gn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type gn
-    python proto_fssl.py --exp_name fedavg_cifar10_sbn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
-    python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
-    python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
-    python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
-done
+# for i in {1..3}
+# do
+#     python proto_fssl.py --exp_name fedavg_cifar10_bn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type bn
+#     python proto_fssl.py --exp_name fedavg_cifar10_bn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type bn
+#     python proto_fssl.py --exp_name fedavg_cifar10_gn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type gn
+#     python proto_fssl.py --exp_name fedavg_cifar10_gn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type gn
+#     python proto_fssl.py --exp_name fedavg_cifar10_sbn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+#     python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+#     python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+#     python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+# done
 
 #Ablations proposal
-#for i in {1..3}
-#do
-#    python proto_fssl.py --exp_name pfssl_cifar10_bn --dataset cifar10 --model res9 --bn_type bn
-#    python proto_fssl.py --exp_name pfssl_cifar10_bn_nid --dataset cifar10 --model res9 --non_iid --bn_type bn
-#    python proto_fssl.py --exp_name pfssl_cifar10_gn --dataset cifar10 --model res9 --bn_type gn
-#    python proto_fssl.py --exp_name pfssl_cifar10_gn_nid --dataset cifar10 --model res9 --non_iid --bn_type gn
-#    python proto_fssl.py --exp_name pfssl_cifar10_sbn --dataset cifar10 --model res9  --bn_type sbn
-#    python proto_fssl.py --exp_name pfssl_cifar10_sbn_nid --dataset cifar10 --model res9 --non_iid --bn_type sbn
-#    python proto_fssl.py --exp_name pfssl_cifar10_res18_sbn --dataset cifar10 --model res18 --bn_type sbn
-#    python proto_fssl.py --exp_name pfssl_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --non_iid --bn_type sbn
-#done
+for i in {1..3}
+do
+    python proto_fssl.py --exp_name pfssl_cifar10_bn --dataset cifar10 --model res9 --bn_type bn
+    python proto_fssl.py --exp_name pfssl_cifar10_bn_nid --dataset cifar10 --model res9 --non_iid --bn_type bn
+    python proto_fssl.py --exp_name pfssl_cifar10_gn --dataset cifar10 --model res9 --bn_type gn
+    python proto_fssl.py --exp_name pfssl_cifar10_gn_nid --dataset cifar10 --model res9 --non_iid --bn_type gn
+    python proto_fssl.py --exp_name pfssl_cifar10_sbn --dataset cifar10 --model res9  --bn_type sbn
+    python proto_fssl.py --exp_name pfssl_cifar10_sbn_nid --dataset cifar10 --model res9 --non_iid --bn_type sbn
+    python proto_fssl.py --exp_name pfssl_cifar10_res18_sbn --dataset cifar10 --model res18 --bn_type sbn
+    python proto_fssl.py --exp_name pfssl_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --non_iid --bn_type sbn
+done
 
 
 
@@ -99,45 +99,3 @@ done
 #python proto_fssl.py --exp_name proposal_sbn_nid --dataset cifar10 --model res9 --bn_type sbn --non_iid --num_round 5
 #python proto_fssl.py --exp_name proposal_res18_sbn_nid --dataset cifar10 --model res18 --bn_type sbn --non_iid --num_round 5
 #python proto_fssl.py --exp_name proposal_wres28x2_sbn_nid --dataset cifar10 --model wres28x2 --bn_type sbn --non_iid --num_round 5
-
-# #non-iid bn
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_bn_nid --dataset cifar10 --model res9 --non_iid --bn_type bn
-# done
-
-# #non-iid gn
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_gn_nid --dataset cifar10 --model res9 --non_iid --bn_type gn
-# done
-
-# #non-iid sbn
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_sbn_nid --dataset cifar10 --model res9 --non_iid --bn_type sbn
-# done
-
-# #non-iid resnet18 sbn 
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_res18_sbn_nid --dataset cifar10 --model res18 --non_iid --bn_type sbn
-# done
-
-# #non-iid wres28x2 sbn 
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_wres28x2_sbn_nid --dataset cifar10 --model wres28x2 --non_iid --bn_type sbn
-# done
-
-# #resnet18 sbn 
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_res18_sbn --dataset cifar10 --model res18 --bn_type sbn
-# done
-
-# #wres28x2 sbn 
-# for i in {1..3}
-# do    
-#     python proto_fssl.py --exp_name proposal_wres28x2_sbn --dataset cifar10 --model wres28x2 --bn_type sbn
-# done
