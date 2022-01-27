@@ -1,5 +1,5 @@
-exp = 'ex13_15'
-seed_num=1005
+exp = 'pfssl_fedprox_stl'
+seed_num=1001
 mu = 1e-2
 
 T = 0.5
@@ -8,7 +8,7 @@ weight_unlabel = 3e-2
 s_label = 1
 q_label = 2
 
-
+BN_TYPE='bn'
 
 input_shape = (96,96,3)
 
@@ -23,12 +23,14 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, Input, MaxPool2D, ReLU
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, Input, MaxPool2D, ReLU, BatchNormalization, Lambda
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.optimizers import Adam, RMSprop, SGD
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.initializers import VarianceScaling
 import tensorflow_datasets as tfds
+
+import tensorflow_addons as tfa
 
 
 # GPU setting
@@ -193,21 +195,38 @@ def get_client_dataset(dataset,unlabeled_dataset, ratio):
     return client_dataset
 
 
+def bn_choice(bn=None):
+    if bn is None:
+        return Lambda(lambda x: x)
+    elif bn == 'bn':
+        return BatchNormalization(axis=-1)
+    elif bn == 'sbn':
+        return BatchNormalization(axis=-1, momentum=0)
+    elif bn == 'gn':
+        return tfa.layers.GroupNormalization(groups=32, axis=-1)
+
+
+
 # Resnet-8
 def get_model():
-    def conv_block(out_channels, pool=False, pool_no=2):
+    def conv_block(out_channels, bn = None, pool=False, pool_no=2):
         layers = [Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=is_bias, strides=(1, 1),
-                         kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor)), ReLU()]
+                         kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor))]
+        layers.append(bn_choice(bn))
+
+        layers.append(ReLU())
+
         if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
         return Sequential(layers)
-    inputs = Input(shape=input_shape)
-    out = conv_block(64)(inputs)
-    out = conv_block(128, pool=True, pool_no=3)(out)
-    out = Sequential([conv_block(128), conv_block(128)])(out) + out
 
-    out = conv_block(256, pool=True)(out)
-    out = conv_block(512, pool=True, pool_no=2)(out)
-    out = Sequential([conv_block(512), conv_block(512)])(out) + out
+    inputs = Input(shape=input_shape)
+    out = conv_block(64, bn=BN_TYPE)(inputs)
+    out = conv_block(128, pool=True, pool_no=3, bn=BN_TYPE)(out)
+    out = Sequential([conv_block(128, bn=BN_TYPE), conv_block(128, bn=BN_TYPE)])(out) + out
+
+    out = conv_block(256, pool=True, pool_no=2, bn=BN_TYPE)(out)
+    out = conv_block(512, pool=True, pool_no=4, bn=BN_TYPE)(out)
+    out = Sequential([conv_block(512, bn=BN_TYPE), conv_block(512, bn=BN_TYPE)])(out) + out
 
     out = Sequential([MaxPool2D(pool_size=4), Flatten()])(out)
     model = Model(inputs=inputs, outputs=out)    
@@ -522,6 +541,7 @@ for c in range(num_client):
 #server.global_model = tf.keras.models.load_model('./save/iidFL/iid_FL_mv2_359')
 print("Training Start")
 max_val = 0.0
+max_test = 0.0
 cycle = 10
 client_model = get_model()
 for r in range(num_round):
@@ -576,10 +596,18 @@ for r in range(num_round):
     with open(path + '/' +exp+'_train_acc' , 'a+') as f:
         f.write("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
 
-    # val & test accuracy
-    server.val_accuracy(r+1)
-    server.test_accuracy(r+1)
-  
+    if r >= 100:
+        # val & test accuracy
+        val_loss, val_acc = server.val_accuracy(r+1)
+        if val_acc > max_val:
+            max_val = val_acc
+            test_loss, test_acc = server.test_accuracy(r+1)
+
+            if test_acc > max_test:
+                max_test = test_acc 
 
     round_end = time.time()
     print("--Time for Round {}: {}".format(r, round_end-round_start))
+
+
+print("Max test accuracy:", max_test)

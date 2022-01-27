@@ -8,10 +8,10 @@
 #python proto_fssl.py --exp_name test_svhn --dataset svhn --model res9 
 #python proto_fssl.py --exp_name test_stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980
 
-for i in {1..3}
-do
-    python proto_fssl.py --exp_name stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --bn_type bn
-done
+# for i in {1..3}
+# do
+#     python proto_fssl.py --exp_name stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --bn_type bn
+# done
 
 #With BN
 #for i in {1..3}
@@ -20,6 +20,19 @@ done
 #    python proto_fssl.py --exp_name svhn_bn_nid --dataset svhn --model res9 --bn_type bn --non_iid
 #done
 
+#python proto_fssl.py --exp_name fedprox_stl10_1 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 10 --mu 1e-2 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_stl10_2 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 10 --mu 1e-3 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_stl10_3 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 10 --mu 1e-4 --fl_framework fedprox
+
+python proto_fssl.py --exp_name fedprox_1 --dataset cifar10 --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-2 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_2 --dataset cifar10 --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-3 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-4 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_4 --dataset cifar10 --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-1 --fl_framework fedprox
+
+python proto_fssl.py --exp_name fedprox_svhn_1 --dataset svhn --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-2 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_svhn_2 --dataset svhn --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-3 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_svhn_3 --dataset svhn --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-4 --fl_framework fedprox
+python proto_fssl.py --exp_name fedprox_svhn_4 --dataset svhn --model res9 --is_sl --num_label 5 --local_episode 2 --mu 1e-1 --fl_framework fedprox
 
 #Ablations upper bound
 # for i in {1..3}

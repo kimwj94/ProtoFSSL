@@ -254,7 +254,6 @@ class Client:
         batch_size = 32
         train_step = math.ceil((self.num_label * self.num_class) / batch_size)
 
-        
         images = []
         labels = []            
 
@@ -273,6 +272,9 @@ class Client:
         idx = np.random.permutation(len(images))
         images = images[idx]
         labels = labels[idx]
+
+        print("data size", len(images))
+        print("Train step", train_step)
 
         for e in range(self.local_episode):            
             for s in range(train_step):
@@ -296,6 +298,9 @@ class Client:
                 client_loss += loss * batch_labels.shape[0]
                 acc = tf.reduce_sum(eq)
                 client_acc += acc
+
+        print("s", s)
+        print("batch_images shape", batch_images.shape)
 
         del global_model_weights
 

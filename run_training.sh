@@ -16,10 +16,27 @@
 #done
 
 #FedProx parameter tuning
-python proto_fssl.py --exp_name fedprox_1 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2
-python proto_fssl.py --exp_name fedprox_2 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-3
-python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4
+# python proto_fssl.py --exp_name fedprox_1 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_2 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-3 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-3 --non_iid
+#python proto_fssl.py --exp_name fedprox_svhn_1 --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4
+#python proto_fssl.py --exp_name fedprox_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --non_iid --fl_framework fedprox
 
+
+#python proto_fssl.py --exp_name fedprox_stl10_1 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 2 --mu 1e-2 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_stl10_2 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 2 --mu 1e-3 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_stl10_3 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 2 --mu 1e-4 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedprox_stl10_4 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 2 --mu 1e-1 --fl_framework fedprox
+#python proto_fssl.py --exp_name fedavg_stl10 --dataset stl10 --model res9 --is_sl --num_label 10 --local_episode 2 
+
+#python proto_fssl.py --exp_name cifar10_comm1 --dataset cifar10 --model res9 
+#python proto_fssl.py --exp_name cifar10_nid_comm1 --dataset cifar10 --model res9 --non_iid
+
+python proto_fssl.py --exp_name pfssl_stl_fedprox_1 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --fl_framework fedprox --mu 1e-1
+python proto_fssl.py --exp_name pfssl_stl_fedprox_2 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --fl_framework fedprox --mu 1e-2
+python proto_fssl.py --exp_name pfssl_stl_fedprox_3 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --fl_framework fedprox --mu 1e-3
+python proto_fssl.py --exp_name pfssl_stl_fedprox_4 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --fl_framework fedprox --mu 1e-4
 
 #Ablations upper bound
 # for i in {1..3}

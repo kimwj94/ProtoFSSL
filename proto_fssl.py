@@ -266,17 +266,18 @@ if __name__=='__main__':
         #with open(path + '/' +exp+'_train_acc' , 'a+') as f:
         #    f.write("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
 
-        # val & test accuracy
-        val_loss, val_acc = server.val_accuracy(r+1)
-        test_loss, test_acc = server.test_accuracy(r+1) 
-        
-        if val_acc > max_val:
-            max_val = val_acc
-            max_test = test_acc
-            max_round = r+1
+        if r >= 100:
+            # val & test accuracy
+            val_loss, val_acc = server.val_accuracy(r+1)            
+            
+            if val_acc > max_val:
+                max_val = val_acc
+                max_round = r+1
+                test_loss, test_acc = server.test_accuracy(r+1) 
+                max_test = test_acc                                
+                test_record_list.append("{},{},{}\n".format(r+1,test_acc, test_loss))
 
-        val_record_list.append("{},{},{}\n".format(r+1,val_acc, val_loss))
-        test_record_list.append("{},{},{}\n".format(r+1,test_acc, test_loss))
+            val_record_list.append("{},{},{}\n".format(r+1,val_acc, val_loss)) 
 
         round_end = time.time()
         print("--Time for Round {}: {}".format(r, round_end-round_start))
