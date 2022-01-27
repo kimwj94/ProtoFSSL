@@ -16,13 +16,21 @@
 #done
 
 #FedProx parameter tuning
-python proto_fssl.py --exp_name fedprox_1 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2
-python proto_fssl.py --exp_name fedprox_2 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-3
-python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4
+#python proto_fssl.py --exp_name fedprox_1 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2
+#python proto_fssl.py --exp_name fedprox_2 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-3
+#python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4
 
 
 #Ablations upper bound
-# for i in {1..3}
+#python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_sbn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+#python proto_fssl.py --exp_name fedavg_cifar10_gn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type gn
+
+# for i in {1..2}
 # do
 #     python proto_fssl.py --exp_name fedavg_cifar10_bn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type bn
 #     python proto_fssl.py --exp_name fedavg_cifar10_bn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type bn
@@ -47,6 +55,14 @@ python proto_fssl.py --exp_name fedprox_3 --dataset cifar10 --model res9 --is_sl
 #    python proto_fssl.py --exp_name pfssl_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --non_iid --bn_type sbn
 #done
 
+
+for i in {1..3}
+do
+    python proto_fssl.py --exp_name pfssl_fedprox_cifar10_bn --dataset cifar10 --model res9 --num_label 5  --mu 1e-2 --fl_framework fedprox --bn_type bn
+    python proto_fssl.py --exp_name pfssl_fedprox_cifar10_bn_nid --dataset cifar10 --model res9 --num_label 5  --mu 1e-2 --fl_framework fedprox --bn_type bn --non_iid
+    python proto_fssl.py --exp_name pfssl_fedprox_svhn_bn --dataset svhn --model res9 --num_label 5  --mu 1e-3 --fl_framework fedprox --bn_type bn
+    python proto_fssl.py --exp_name pfssl_fedprox_svhn_bn_nid --dataset svhn --model res9 --num_label 5  --mu 1e-3 --fl_framework fedprox --bn_type bn --non_iid
+done
 
 
 
