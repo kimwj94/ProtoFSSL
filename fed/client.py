@@ -274,6 +274,7 @@ class Client:
         images = images[idx]
         labels = labels[idx]
 
+
         for e in range(self.local_episode):            
             for s in range(train_step):
                 with tf.GradientTape() as tape:
