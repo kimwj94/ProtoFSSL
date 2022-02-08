@@ -49,6 +49,9 @@ parser.add_argument('--is_sl', action='store_true', help='Whether to do supervis
 parser.add_argument('--fl_framework', default='fedavg', help='Federated Learning framework. One of [fedavg, fedprox], default: fedavg')
 parser.add_argument('--mu', type=float, default=1e-3, help='regularization hyperparameter for fedprox')
 
+parser.add_argument('--s_label', type=int, default=1, help='Number of samples for support set in each episode, default: 1')
+parser.add_argument('--q_label', type=int, default=2, help='Number of samples for query set in each episode, default: 2')
+parser.add_argument('--q_unlabel', type=int, default=100, help='Number of samples for query set from unlabeled data in each episode, default: 100')
 
 FLAGS = parser.parse_args()
 
@@ -70,9 +73,9 @@ if not isExist:
 ########################## Hyperparameters ###########################
 
 SEED_NUM=1001
-S_LABEL = 1
-Q_LABEL = 2
-Q_UNLABEL = 100 # number of unlabeled data for query set
+S_LABEL = FLAGS.s_label
+Q_LABEL = FLAGS.q_label
+Q_UNLABEL = FLAGS.q_unlabel # number of unlabeled data for query set
 
 IS_IID = False if FLAGS.non_iid else True# distribution of unlabeled data
 
@@ -298,5 +301,6 @@ if __name__=='__main__':
             .format(FLAGS.exp_name, dt_string, FLAGS.dataset, model_name, max_round, max_val, max_test))
     f.close()
     print("Max test accuracy: ", max_test)
+
 
 
