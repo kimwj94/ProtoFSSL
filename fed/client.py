@@ -273,8 +273,6 @@ class Client:
         images = images[idx]
         labels = labels[idx]
 
-        print("data size", len(images))
-        print("Train step", train_step)
 
         for e in range(self.local_episode):            
             for s in range(train_step):
