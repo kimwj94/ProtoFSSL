@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.datasets import cifar10, cifar100
 import tensorflow_datasets as tfds
 
 SEED_NUM = 1001
@@ -38,6 +38,40 @@ def get_cifar10_dataset():
         train_dataset.append(images[np.where(labels == 1)[1]==i][:5400, :, :, :]/255.0)
         val_dataset.append(images[np.where(labels == 1)[1]==i][5400:5700, :, :, :]/255.0)
         test_dataset.append(images[np.where(labels == 1)[1]==i][5700:, :, :, :]/255.0)
+    
+    return train_dataset, val_dataset, test_dataset, num_class, input_shape
+
+# get train/validation/test dataset
+def get_cifar100_dataset():
+
+    (train_images, train_labels), (test_images, test_labels) = cifar100.load_data()
+
+    num_class = 100
+    input_shape = (32,32,3)
+
+    np.random.seed(SEED_NUM)
+    idx = np.random.permutation(len(train_images))
+    train_images = train_images[idx]
+    train_labels = train_labels[idx]
+    np.random.seed(SEED_NUM)
+    idx = np.random.permutation(len(test_images))
+    test_images = test_images[idx]
+    test_labels = test_labels[idx]
+
+    images = np.concatenate((train_images, test_images), axis = 0)
+    labels = np.concatenate((train_labels, test_labels), axis = 0)
+
+    images = images.astype('float32')
+    labels = tf.keras.utils.to_categorical(labels, num_class)
+   
+
+    train_dataset = []
+    val_dataset = []
+    test_dataset = []
+    for i in range(num_class):
+        train_dataset.append(images[np.where(labels == 1)[1]==i][:540, :, :, :]/255.0)
+        val_dataset.append(images[np.where(labels == 1)[1]==i][540:570, :, :, :]/255.0)
+        test_dataset.append(images[np.where(labels == 1)[1]==i][570:, :, :, :]/255.0)
     
     return train_dataset, val_dataset, test_dataset, num_class, input_shape
 
@@ -171,14 +205,14 @@ def get_stl10_dataset():
 
 
 # distribution for unlabeled data
-def get_data_distribution(is_iid=True, num_dist_data=490):
+def get_data_distribution(is_iid=True, num_dist_data=490, num_class=10):
     if is_iid:
-        ratio = [[0.5 for _ in range(10)] for _ in range(10)]
-        for i in ratio:
-            for j in range(10):
-                if i[j] == 0.5:
-                    i[j] = num_dist_data//10
-        return ratio
+        ratio = [[num_dist_data//num_class for _ in range(num_class)] for _ in range(10)]
+        #for i in ratio:
+        #    for j in range(num_class):
+        #        if i[j] == 0.5:
+        #            i[j] = num_dist_data//num_class
+        #return ratio
     else:
         ratio = [
             [0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15], # type 0
