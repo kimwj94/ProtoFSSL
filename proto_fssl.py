@@ -131,7 +131,7 @@ if __name__=='__main__':
                                                                                     num_label=NUM_LABEL,
                                                                                     num_unlabel=NUM_UNLABEL,
                                                                                     is_sl=FLAGS.is_sl)
-    server_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl)
+    server_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl, num_classes=NUM_CLASS)
     print('Model built:', FLAGS.model)   
     print(server_model.summary())
 
@@ -182,7 +182,7 @@ if __name__=='__main__':
     max_val, max_test = 0.0, 0.0
     max_round = 0
     cycle = 1
-    client_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl)
+    client_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl, num_classes=NUM_CLASS)
 
     train_record_list = []
     val_record_list = []

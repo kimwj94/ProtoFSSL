@@ -5,6 +5,8 @@ python proto_fssl.py --exp_name fedavg_cifar10_nid --dataset cifar10 --model res
 python proto_fssl.py --exp_name fedavg_svhn --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2
 python proto_fssl.py --exp_name fedavg_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid
 
+python proto_fssl.py --exp_name fedavg_cifar100 --dataset cifar100 --model res9 --is_sl --num_label 54  --local_episode 2 --num_client 10
+
 # FedProx -Full SL
 python proto_fssl.py --exp_name fedprox_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox
 python proto_fssl.py --exp_name fedprox_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
@@ -18,6 +20,8 @@ python proto_fssl.py --exp_name fedavg_part_svhn --dataset svhn --model res9 --i
 python proto_fssl.py --exp_name fedavg_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
 python proto_fssl.py --exp_name fedavg_part_stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 0 --local_episode 2
 
+python proto_fssl.py --exp_name fedavg_part_cifar100 --dataset cifar100 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --num_client 10
+
 #FedProx - Partial SL
 python proto_fssl.py --exp_name fedprox_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
 python proto_fssl.py --exp_name fedprox_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
@@ -29,6 +33,8 @@ python proto_fssl.py --exp_name fedprox_part_stl10 --dataset stl10 --model res9 
 python proto_fssl.py --exp_name cifar10 --dataset cifar10 --model res9 
 python proto_fssl.py --exp_name svhn --dataset svhn --model res9 
 python proto_fssl.py --exp_name stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980
+
+python proto_fssl.py --exp_name cifar100 --dataset cifar100 --model res9 --num_client 10 --num_unlabel 4900
 
 #base models, non-iid
 python proto_fssl.py --exp_name cifar10 --dataset cifar10 --model res9 --non_iid
