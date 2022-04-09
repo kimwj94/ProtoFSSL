@@ -297,9 +297,6 @@ class Client:
                 acc = tf.reduce_sum(eq)
                 client_acc += acc
 
-        print("s", s)
-        print("batch_images shape", batch_images.shape)
-
         del global_model_weights
 
         client_acc /= (self.local_episode * images.shape[0])

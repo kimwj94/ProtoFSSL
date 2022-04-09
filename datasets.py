@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.datasets import cifar10, cifar100
 import tensorflow_datasets as tfds
+import copy
 
 SEED_NUM = 1001
 # get train/validation/test dataset
@@ -206,6 +207,9 @@ def get_stl10_dataset():
 
 # distribution for unlabeled data
 def get_data_distribution(is_iid=True, num_dist_data=490, num_class=10):
+    # num_dist_data
+    #  iid: the number of labeled data per client
+    #  non-iid: the number of unlabeled data per client
     if is_iid:
         ratio = [[num_dist_data//num_class for _ in range(num_class)] for _ in range(10)]
         #for i in ratio:
@@ -214,29 +218,49 @@ def get_data_distribution(is_iid=True, num_dist_data=490, num_class=10):
         #            i[j] = num_dist_data//num_class
         #return ratio
     else:
-        ratio = [
-            [0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15], # type 0
-            [0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03], # type 1 
-            [0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03], # type 2 
-            [0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03], # type 3 
-            [0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02], # type 4 
-            [0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03], # type 5 
-            [0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03], # type 6 
-            [0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03], # type 7 
-            [0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15], # type 8 
-            [0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50], # type 9
-        ]
+        if num_class == 10:
+            ratio = [
+                [0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15], # type 0
+                [0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03], # type 1 
+                [0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03], # type 2 
+                [0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02,0.03], # type 3 
+                [0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03,0.02], # type 4 
+                [0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03,0.03], # type 5 
+                [0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03,0.03], # type 6 
+                [0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15,0.03], # type 7 
+                [0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50,0.15], # type 8 
+                [0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15,0.50], # type 9
+            ]
 
-        if num_dist_data == 490:
-            dist_map = {0.5:244, 0.15:73, 0.03:15, 0.02:10}
-        elif num_dist_data == 540:
-            dist_map = {0.5:249, 0.15:78, 0.03:20, 0.02:15}
-        
-        for ratio_type in ratio:
-            for c in range(10):
-                ratio_type[c] = dist_map[ratio_type[c]]                
+            if num_dist_data == 490:
+                dist_map = {0.5:244, 0.15:73, 0.03:15, 0.02:10}
+            elif num_dist_data == 540:
+                dist_map = {0.5:249, 0.15:78, 0.03:20, 0.02:15}
+            
+            for ratio_type in ratio:
+                for c in range(10):
+                    ratio_type[c] = dist_map[ratio_type[c]]  
+
+        elif num_class == 100:
+            base_dist = [0.05] * 10 + [0.015] * 20 + [0.003] * 40 + [0.002] * 40
+            ratio = []
+            for i in range(10):
+                curr_dist = copy.deepcopy(base_dist)
+                curr_dist = curr_dist[i:] + curr_dist[:i]
+                ratio.append(curr_dist)
+                
+
+            if num_dist_data == 4900:
+                dist_map = {0.05:244, 0.015:73, 0.003:15, 0.002:10}
+            
+            
+            for ratio_type in ratio:
+                for c in range(10):                    
+                    ratio_type[c] = dist_map[ratio_type[c]]  
+
+    print(ratio)
     
-        return ratio
+    return ratio
 
 
 # distribute data for clients
@@ -295,7 +319,7 @@ def get_client_dataset_sl(dataset, ratio, num_client=100, num_label=54, num_clas
         idx = 0
         # distribute label
         for client in range(num_client):
-            for _ in range(ratio[client%10][label]):
+            for _ in range(ratio[client%10][label]):                
                 client_dataset[client][str(label)].append(dataset[label][idx])
                 client_labels[client][str(label)].append(label)
                 idx += 1                
@@ -306,7 +330,7 @@ def get_client_dataset_sl(dataset, ratio, num_client=100, num_label=54, num_clas
             client_dataset[i][key] = np.array(client_dataset[i][key])
             client_labels[i][key] = np.array(client_labels[i][key])
             if i == (num_client-1):
-                print("# of labeled data (class {}): {}".format(key, len(client_dataset[i][key])))        
+                print("# of labeled data, in client 0 (class {}): {}".format(key, len(client_dataset[i][key])))
 
     return client_dataset, client_labels
 
@@ -352,6 +376,8 @@ def get_client_dataset_stl10(dataset, unlabeled_dataset, num_client=100, num_lab
 def get_dataset(dataset_name='cifar10', is_iid=True, num_client=100, num_label=5, num_unlabel=490, is_sl=False):
     if dataset_name == 'cifar10':
         train_dataset, val_dataset, test_dataset, num_class, input_shape = get_cifar10_dataset()
+    elif dataset_name == 'cifar100':
+        train_dataset, val_dataset, test_dataset, num_class, input_shape = get_cifar100_dataset()
     elif dataset_name == 'svhn':
         train_dataset, val_dataset, test_dataset, num_class, input_shape = get_svhn_dataset()
     elif dataset_name == 'stl10':
@@ -362,11 +388,11 @@ def get_dataset(dataset_name='cifar10', is_iid=True, num_client=100, num_label=5
 
     # Prepare dataset for supervised learning
     if is_sl:
-        ratio = get_data_distribution(is_iid=is_iid, num_dist_data=num_label * num_class)           
+        ratio = get_data_distribution(is_iid=is_iid, num_dist_data=num_label * num_class, num_class=num_class)           
         client_dataset, client_labels = get_client_dataset_sl(train_dataset, ratio, num_client=num_client, num_label=num_label, num_class=num_class)
     # Prepare dataset for ProtoFSSL
-    elif dataset_name == 'cifar10' or dataset_name == 'svhn':
-        ratio = get_data_distribution(is_iid=is_iid, num_dist_data=num_unlabel)
+    elif dataset_name in ['cifar10', 'svhn', 'cifar100']:
+        ratio = get_data_distribution(is_iid=is_iid, num_dist_data=num_unlabel, num_class=num_class)
         client_dataset = get_client_dataset(train_dataset, ratio, num_client=num_client, num_label=num_label, num_class=num_class)
         client_labels = None
     else:
