@@ -238,24 +238,26 @@ def get_data_distribution(is_iid=True, num_dist_data=490, num_class=10):
                 dist_map = {0.5:249, 0.15:78, 0.03:20, 0.02:15}
             
             for ratio_type in ratio:
-                for c in range(10):
+                for c in range(num_class):
                     ratio_type[c] = dist_map[ratio_type[c]]  
 
         elif num_class == 100:
-            base_dist = [0.05] * 10 + [0.015] * 20 + [0.003] * 40 + [0.002] * 40
+            #Distribution per class, 5% * 10, 1.5% * 20, 0.3% * 40, 0.2% * 40
+            base_dist = [0.05] * 10 + [0.015] * 20 + [0.003] * 60 + [0.002] * 10
+
+            #Different distribution across clients
             ratio = []
             for i in range(10):
                 curr_dist = copy.deepcopy(base_dist)
-                curr_dist = curr_dist[i:] + curr_dist[:i]
-                ratio.append(curr_dist)
-                
+                curr_dist = curr_dist[i*10:] + curr_dist[:i*10]
+                ratio.append(curr_dist)                
 
+            #Proportion to actual number of data
             if num_dist_data == 4900:
-                dist_map = {0.05:244, 0.015:73, 0.003:15, 0.002:10}
-            
+                dist_map = {0.05:244, 0.015:73, 0.003:15, 0.002:10}            
             
             for ratio_type in ratio:
-                for c in range(10):                    
+                for c in range(num_class):                    
                     ratio_type[c] = dist_map[ratio_type[c]]  
 
     print(ratio)
