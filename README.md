@@ -1,8 +1,5 @@
->📋  A template README.md for code accompanying a Machine Learning paper
-
-# My Paper Title
-
-This repository is the official implementation of [My Paper Title](https://arxiv.org/abs/2030.12345). 
+# ProtoFSSL: Federated Semi-Supervised Learning with Prototype-based Consistency Regularization
+This repository is the official implementation of *ProtoFSSL: Federated Semi-Supervised Learning with Prototype-based Consistency Regularization*.
 
 >📋  Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials
 
