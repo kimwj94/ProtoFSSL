@@ -22,6 +22,7 @@ from datasets import get_dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--exp_name', default='protofssl', help='Experiment name')
+parser.add_argument('--seed', type=int, default=1000, help='Random seed for training')
 parser.add_argument('--dataset', default='cifar10', help='The name of the datset. One of [cifar10, svhn, stl10], default: cifar10')
 parser.add_argument('--model', default='res9', help='Model type. One of [res9, res18, wres28x2]')
 parser.add_argument('--bn_type', default=None, help='Batch normalization type one of [bn, sbn, gn], default: None')
@@ -44,14 +45,14 @@ parser.add_argument('--l2_factor', type=float, default=1e-4, help='L2 Regulariza
 parser.add_argument('--is_sl', action='store_true', help='Whether to do supervised learning')
 
 parser.add_argument('--fl_framework', default='fedavg', help='Federated Learning framework. One of [fedavg, fedprox], default: fedavg')
-parser.add_argument('--mu', type=float, default=1e-3, help='regularization hyperparameter for fedprox')
+parser.add_argument('--mu', type=float, default=1e-3, help='Regularization hyperparameter for fedprox')
 
 parser.add_argument('--s_label', type=int, default=1, help='Number of samples for support set in each episode, default: 1')
 parser.add_argument('--q_label', type=int, default=2, help='Number of samples for query set in each episode, default: 2')
 parser.add_argument('--q_unlabel', type=int, default=100, help='Number of samples for query set from unlabeled data in each episode, default: 100')
 
 parser.add_argument('--use_noise', type=bool, default=False, help='Whether to add gaussian noise to prototypes when sending to server, default:False')
-parser.add_argument('--stddev', type=float, default=0.0, help='stddev of gaussian noise for prorotypes')
+parser.add_argument('--stddev', type=float, default=0.0, help='Stddev of gaussian noise for prorotypes')
 
 FLAGS = parser.parse_args()
 
@@ -72,7 +73,7 @@ if not isExist:
 
 ########################## Hyperparameters ###########################
 
-SEED_NUM=1001
+SEED_NUM=FLAGS.seed
 S_LABEL = FLAGS.s_label
 Q_LABEL = FLAGS.q_label
 Q_UNLABEL = FLAGS.q_unlabel # number of unlabeled data for query set
