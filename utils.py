@@ -19,9 +19,13 @@ def calc_euclidian_dists(x, y, root=False):
 
 
 # compute prototypes for each class
-def get_prototype(z, s_label, num_class):
+def get_prototype(z, s_label, num_class, add_noise=False, stddev = 0.0):
     z_prototypes = tf.reshape(z[:num_class*s_label], [num_class, s_label, z.shape[-1]])
     z_prototypes = tf.math.reduce_mean(z_prototypes, axis=1)
+    
+    if add_noise:
+        noise_layer = tf.keras.layers.GaussianNoise(stddev)
+        z_prototypes = noise_layer(z_prototypes, training=True)
 
     return z_prototypes
 

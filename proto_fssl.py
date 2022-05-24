@@ -8,10 +8,7 @@ from datetime import datetime
 import random
 import argparse
 
-
-from tqdm import tqdm
 import numpy as np
-import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam, RMSprop, SGD
@@ -52,6 +49,9 @@ parser.add_argument('--mu', type=float, default=1e-3, help='regularization hyper
 parser.add_argument('--s_label', type=int, default=1, help='Number of samples for support set in each episode, default: 1')
 parser.add_argument('--q_label', type=int, default=2, help='Number of samples for query set in each episode, default: 2')
 parser.add_argument('--q_unlabel', type=int, default=100, help='Number of samples for query set from unlabeled data in each episode, default: 100')
+
+parser.add_argument('--use_noise', type=bool, default=False, help='Whether to add gaussian noise to prototypes when sending to server, default:False')
+parser.add_argument('--stddev', type=float, default=0.0, help='stddev of gaussian noise for prorotypes')
 
 FLAGS = parser.parse_args()
 
@@ -94,6 +94,9 @@ UNLABEL_LOSS_TYPE = FLAGS.unlabel_loss_type # loss for unlabeled data. MSE or CE
 OPT = FLAGS.optimizer # optimizer
 KEEP_PROTO_ROUNDS = FLAGS.keep_proto_rounds
 WARMUP_EPISODE = FLAGS.warmup_episode
+
+USE_NOISE = FLAGS.use_noise
+STDDEV = FLAGS.stddev
 
 # get model
 def get_model(model_name='res9', input_shape=(32,32,3), l2_factor=1e-4, is_sl=False, num_classes=10):
@@ -247,7 +250,9 @@ if __name__=='__main__':
                                                         client_model,
                                                         copy.deepcopy(global_model_weights),
                                                         client_protos,
-                                                        r)
+                                                        r,
+                                                        USE_NOISE,
+                                                        STDDEV)
                 
                 total_client_acc += client_acc
                 total_client_loss += client_loss
