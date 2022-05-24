@@ -1,1 +1,4 @@
 result/*
+__pycache__/*
+fed/__pycache__/*
+*.ipynb_checkpoints/*

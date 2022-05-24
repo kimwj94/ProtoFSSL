@@ -111,7 +111,9 @@ class Client:
                 client_model, 
                 global_model_weights,
                 client_protos,
-                rounds):
+                rounds,
+                use_noise,
+                stddev):
         
         client_model.set_weights(global_model_weights)
         #self.set_learning_rate(rounds)
@@ -223,7 +225,7 @@ class Client:
         support_set_label = np.reshape(support_set_label, (-1,)+self.input_shape)
 
         z = client_model(support_set_label, training=False)
-        local_proto = get_prototype(z, self.num_label, self.num_class)
+        local_proto = get_prototype(z, self.num_label, self.num_class, use_noise, stddev)
 
         del global_model_weights
         del temp_dataset
