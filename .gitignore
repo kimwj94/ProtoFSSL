@@ -1,4 +1,9 @@
-result/*
-__pycache__/*
-fed/__pycache__/*
-*.ipynb_checkpoints/*
+result/
+__pycache__/
+*.py[cod]
+*$py.class
+fed/__pycache__/
+*.ipynb
+.ipynb_checkpoints/
+
+
