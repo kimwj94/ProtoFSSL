@@ -16,7 +16,8 @@ class Server:
                 input_shape=(32,32,3),
                 num_active_client=5,
                 keep_proto_rounds=1,
-                is_sl=False):
+                is_sl=False,
+                print_log=True):
         self.global_model = global_model
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
@@ -28,6 +29,7 @@ class Server:
         self.num_active_client = num_active_client
         self.keep_proto_rounds = keep_proto_rounds
         self.is_sl = is_sl
+        self.print_log = print_log
    
     # return: global model weights
     def get_global_model_weights(self):
@@ -35,6 +37,31 @@ class Server:
     
     def get_client_prototype(self):
         return self.client_prototype_list
+    
+    def comp_dist(self):
+        dist_list = [[] for _ in range(10)]
+        dist_avg_list = []
+        print("comd dist for {} clients".format(len(self.client_prototype_list[self.num_active_client:])))
+        for label in range(10):
+            dist_sum = 0.0
+            dist_cnt = 0.0
+            for i in range(len(self.client_prototype_list[self.num_active_client:])):
+                for j in range(i+1, len(self.client_prototype_list[self.num_active_client:])):
+                    proto1 = self.client_prototype_list[self.num_active_client:][i][label]
+                    proto2 = self.client_prototype_list[self.num_active_client:][j][label]
+                    dist = tf.math.pow(tf.reduce_sum(tf.math.pow(proto1-proto2, 2)), 0.5)
+                    dist_sum += dist
+                    dist_cnt += 1.0
+                    dist_list[label].append(dist.numpy())
+            
+            if dist_cnt != 0:
+                dist_avg = dist_sum/dist_cnt
+                dist_avg_list.append(dist_avg.numpy())
+        
+        return self.client_prototype_list, dist_list, dist_avg_list
+                    
+                    #tf.math.pow(tf.reduce_sum(tf.math.pow(x - y, 2), 2), 0.5)
+        
     
     def reset_weight(self):
         self.client_model_weight_list = []
@@ -67,7 +94,8 @@ class Server:
         
     # FedAvg and evaluate global model with validation set
     def get_accuracy(self, test_dataset, model):
-        
+                #with open(path + '/' +exp+'_train_acc' , 'a+') as f:
+        #    f.write("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
         class_idx = list(range(self.num_class))
         
         per_class = len(test_dataset[0])
@@ -167,8 +195,8 @@ class Server:
             acc, loss = self.get_accuracy_sl(self.test_dataset, self.global_model)
         else:
             acc, loss = self.get_accuracy(self.test_dataset, self.global_model)
-
-        print("-----Test Acc: {}, Test Loss: {}".format(acc, loss))
+        if self.print_log:
+            print("-----Test Acc: {}, Test Loss: {}".format(acc, loss))
         #with open(path + '/' +exp+'_test_acc' , 'a+') as f:
         #    f.write("{},{},{}\n".format(r,acc, loss))
         return loss, acc
@@ -179,8 +207,8 @@ class Server:
             acc, loss = self.get_accuracy_sl(self.val_dataset, self.global_model)
         else:
             acc, loss = self.get_accuracy(self.val_dataset, self.global_model)
-          
-        print("-----Val Acc: {}, Val Loss: {}".format(acc, loss))
+        if self.print_log:
+            print("-----Val Acc: {}, Val Loss: {}".format(acc, loss))
         #with open(path + '/' +exp+'_val_acc' , 'a+') as f:
         #    f.write("{},{},{}\n".format(r,acc, loss))
         return loss, acc

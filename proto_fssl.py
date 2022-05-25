@@ -54,6 +54,9 @@ parser.add_argument('--q_unlabel', type=int, default=100, help='Number of sample
 parser.add_argument('--use_noise', type=bool, default=False, help='Whether to add gaussian noise to prototypes when sending to server, default:False')
 parser.add_argument('--stddev', type=float, default=0.0, help='Stddev of gaussian noise for prorotypes')
 
+parser.add_argument('--print_log', type=bool, default=True, help='Whether to print log')
+parser.add_argument('--comp_dist', type=bool, default=False, help='Wheter to compute distance between helper clients')
+
 FLAGS = parser.parse_args()
 
 
@@ -98,6 +101,9 @@ WARMUP_EPISODE = FLAGS.warmup_episode
 
 USE_NOISE = FLAGS.use_noise
 STDDEV = FLAGS.stddev
+
+PRINT_LOG = FLAGS.print_log
+COMP_DIST = FLAGS.comp_dist
 
 # get model
 def get_model(model_name='res9', input_shape=(32,32,3), l2_factor=1e-4, is_sl=False, num_classes=10):
@@ -146,7 +152,8 @@ if __name__=='__main__':
                     input_shape=INPUT_SHAPE,
                     num_active_client=NUM_ACTIVE_CLIENT,
                     keep_proto_rounds=KEEP_PROTO_ROUNDS,
-                    is_sl=FLAGS.is_sl)
+                    is_sl=FLAGS.is_sl,
+                    print_log=PRINT_LOG)
 
     client_list = []
 
@@ -268,8 +275,8 @@ if __name__=='__main__':
         
         # FedAvg 
         server.fed_avg()
-
-        print("--Training acc: {}, loss: {}".format(total_client_acc, total_client_loss))
+        if PRINT_LOG:
+            print("--Training acc: {}, loss: {}".format(total_client_acc, total_client_loss))
         train_record_list.append("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
         
         #with open(path + '/' +exp+'_train_acc' , 'a+') as f:
@@ -289,10 +296,25 @@ if __name__=='__main__':
             val_record_list.append("{},{},{}\n".format(r+1,val_acc, val_loss)) 
 
         round_end = time.time()
-        print("--Time for Round {}: {}".format(r, round_end-round_start))
+        if PRINT_LOG:
+            print("--Time for Round {}: {}".format(r, round_end-round_start))
     
+        if COMP_DIST and (r+1)%10 == 0:
+            print('comp dist')
+            client_prototypes, dist, dist_avg = server.comp_dist()
+
+            with open(os.path.join(result_path, FLAGS.exp_name + '_clientprototypes'), 'w+') as f:
+                f.write(str(client_prototypes))
+
+            with open(os.path.join(result_path, FLAGS.exp_name + '_dist'), 'w+') as f:
+                f.write(str(dist))
+
+            with open(os.path.join(result_path, FLAGS.exp_name + '_distavg'), 'w+') as f:
+                f.write(str(dist_avg))
+            
     dt_string = startTime.strftime("%Y%m%d %H%M")
 
+                     
     # Write record
     write_record(train_record_list, '_' + dt_string + '_train_acc')
     write_record(val_record_list, '_' + dt_string + '_val_acc')
