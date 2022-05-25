@@ -55,7 +55,7 @@ parser.add_argument('--use_noise', type=bool, default=False, help='Whether to ad
 parser.add_argument('--stddev', type=float, default=0.0, help='Stddev of gaussian noise for prorotypes')
 
 parser.add_argument('--print_log', type=bool, default=True, help='Whether to print log')
-parser.add_argument('--comp_dist', type=bool, default=False, help='Wheter to compute distance between helper clients')
+parser.add_argument('--comp_dist', type=bool, default=False, help='Whether to compute distance between helper clients')
 
 FLAGS = parser.parse_args()
 
@@ -234,7 +234,7 @@ if __name__=='__main__':
                                                         client_labels,
                                                         client_idx[c],
                                                         client_model,
-                                                        copy.deepcopy(global_model_weights),                                                        
+                                                        copy.deepcopy(global_model_weights),
                                                         r)
                 
                 total_client_acc += client_acc
