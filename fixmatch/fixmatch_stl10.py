@@ -205,8 +205,6 @@ def get_data_distribution(is_iid=True):
         return ratio
 
 
-
-
 def get_client_dataset(dataset, unlabeled_dataset, ratio):            
     client_dataset = []
 
@@ -414,14 +412,9 @@ class Client:
     # training using global model weights
     # return: update client model weights
     def training(self, client_images, client_labels, client_unlabels, client_model, global_model_weights, local_epoch, batch_size):
-        '''
-        client_model.compile(optimizer=self.optimizer,
-              loss=self.loss_fn,
-              metrics=['accuracy'])
-        '''
+
         client_model.set_weights(global_model_weights)
         
-        #K.set_value(self.client_model.optimizer.learning_rate, lr)
         data_num = client_images.shape[0]
         train_step = data_num//batch_size
             

@@ -2,15 +2,13 @@ import os
 import sys
 import copy
 import time
-from datetime import datetime
 import random
 import argparse
+from datetime import datetime
 
 import numpy as np
-
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam, RMSprop, SGD
-
 
 from fed.server import Server
 from fed.client import Client
@@ -61,8 +59,12 @@ FLAGS = parser.parse_args()
 # GPU setting
 gpus = tf.config.experimental.list_physical_devices('GPU')
 idx = 0
-tf.config.experimental.set_visible_devices(gpus[idx], 'GPU')
-tf.config.experimental.set_memory_growth(gpus[idx], True)
+if len(gpus) != 0:
+    print("Use GPU")
+    tf.config.experimental.set_visible_devices(gpus[idx], 'GPU')
+    tf.config.experimental.set_memory_growth(gpus[idx], True)
+else:
+    print("Use CPU")
 
 # path for accuracy & loss
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

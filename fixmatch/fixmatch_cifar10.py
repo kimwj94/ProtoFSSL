@@ -9,13 +9,13 @@ import numpy as np
 import pickle
 import socket
 import struct
-import tensorflow as tf
-import matplotlib.pyplot as plt
 
 from sys import getsizeof
 from tqdm import tqdm
 from datetime import datetime
 
+import tensorflow as tf
+import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
 from tensorflow.keras.models import Sequential, Model
@@ -42,7 +42,6 @@ import tensorflow.keras.regularizers as tf_regularizers
 import tensorflow.keras.initializers as tf_initializers
 
 
-
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if len(gpus) != 0:
     print('use gpu')
@@ -66,30 +65,26 @@ if not isExist:
     
 seed_num=1001
 random.seed(seed_num)
-rounds = 300
-num_client = 100
-num_active_client=5
-num_class = 10
+rounds = 300 # number of rounds
+num_client = 100 # number of clients
+num_active_client=5 # number of active clients
+num_class = 10 # number of class of data
 if iid == 'iid':
     is_iid = True
 else:
     is_iid = False
-num_label = 5
-num_unlabel = 540 - num_label * 10
-mu_prox = 1e-1 # weight for FedProx
-
-lr = 1e-3
-
+num_label = 5 # number of labeled data per each class
+num_unlabel = 540 - num_label * 10 # number of unlabeled data
+mu_prox = 1e-1 # weight for FedProx 
+lr = 1e-3 #learning rate
 randaug_n = 2 # number of transformation 
 randaug_m = 14 # transformation range
 translate_range = (-0.125, 0.125)
 weight_unlabel = 1e-2 #weight for unlabeled data
-threshold = 0.95
+threshold = 0.95 # threshold to determine wheter to use unlabeled data
 batch_size = 10 # batch size of labeled data
 mu_unlabel = 10 # batch size of unlabeld data
-local_epochs = 2
-
-
+local_epochs = 2 # local epoch
 
 
 def get_dataset():
@@ -381,14 +376,9 @@ class Client:
     # training using global model weights
     # return: update client model weights
     def training(self, client_images, client_labels, client_unlabels, client_model, global_model_weights, local_epoch, batch_size):
-        '''
-        client_model.compile(optimizer=self.optimizer,
-              loss=self.loss_fn,
-              metrics=['accuracy'])
-        '''
+
         client_model.set_weights(global_model_weights)
         
-        #K.set_value(self.client_model.optimizer.learning_rate, lr)
         data_num = client_images.shape[0]
         train_step = data_num//batch_size
             
@@ -460,11 +450,7 @@ for c in range(num_client):
     client_list.append(
         Client(RMSprop(learning_rate=lr),
                tf.keras.losses.CategoricalCrossentropy(from_logits=False))
-              )
-
-#server.global_model = tf.keras.models.load_model('./save/iidFL/iid_FL_mv2_359')
-
-    
+              ) 
     
 print("Training Start")
 max_val = 0
