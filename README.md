@@ -70,7 +70,7 @@ stddev: Stddev of gaussian noise for prorotypes, default: 0.0
 
 ## Evaluation
 
-The results are saved in result folder. There will be three files: training, validation, and test accuracy. Each time the validation accuracy updates the highest value, the test account is recorded. So, the final test accuracy is at the end of the file of the test accuracy.
+The results are saved in `result` folder. There will be three files: training, validation, and test accuracy. Each time the validation accuracy updates the highest value, the test account is recorded. So, the final test accuracy is at the end of the file of the test accuracy.
 
 
 ## Results
