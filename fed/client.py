@@ -46,7 +46,6 @@ class Client:
         self.num_round = num_round
         self.warmup_episode = warmup_episode
         self.sl_loss_fn = sl_loss_fn
-        self.fixmatch_loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=False)
         self.fl_framework=fl_framework
         self.mu=mu
 
