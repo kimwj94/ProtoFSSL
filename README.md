@@ -17,25 +17,35 @@ conda env create -f environment_protofssl.yaml
 
 ## Training
 
-To train the model(s) in the paper, run this command:
+### ProtoFSSL
+To train the models in the paper, run this command:
 
 ```
-python proto_fssl.py --exp_name test_cifar10 --dataset cifar10 --model res9 --num_round 5
+python proto_fssl.py --exp_name name_you_want --dataset cifar10
 ```
-If you want FedProx framework, (default is FedAvg)
+You can select dataset using `--dataset` argument. If you want non-iid distribution of unlabeled data, use `--non_iid` argument.
+If you want FedProx framework, use `--fl_framework` argument (default is FedAvg).
 ```
-python proto_fssl.py --exp_name test_cifar10 --dataset cifar10 --model res9 --num_round 5 --fl_framework fedprox --mu 1e-3
+python proto_fssl.py --exp_name name_you_want --dataset cifar10 --model res9 --fl_framework fedprox --non_iid
 ```
 
+### Other models
+If you want to use other methods that appears in the paper, check input arguments or `run_training.sh` files.  
+For FixMatch[[1]]([1]) method, we use codes in `./fixmatch/` directory. Use this command:
+```
+python fixmatch_cifar10.py name_you_want fedavg iid
+```
+You can use `fedprox` instead of `fedavg` and `noniid` instead of `iid`.
+For FedMatch[2], we use their [official code](https://github.com/wyjeong/FedMatch) in the paper.
 
-The results is saved in result folder.
+
 
 
 ### Summary of input arguments
 ```
 exp_name: Experiment name
 dataset: The name of the datset. One of [cifar10, svhn, stl10], default: cifar10
-model: Model type. One of [res9, res18, wres28x2]
+model: Model type. One of [res9, res18, wres28x2], default: res9
 bn_type: Batch normalization type one of [bn, sbn, gn], default: None
 non_iid: Run non-iid distributed data
 num_round: Number of training round, default: 300
@@ -52,6 +62,9 @@ unlabel_loss_type: Loss type to train unlabeled data. one of [CE, MSE], default:
 >📋  Describe how to train the models, with example commands on how to train the models in your paper, including the full training procedure and appropriate hyperparameters.
 
 ## Evaluation
+
+
+The results is saved in result folder.
 
 To evaluate my model on ImageNet, run:
 
@@ -73,3 +86,9 @@ Our model achieves the following performance on :
 | My awesome model   |     85%         |      95%       |
 
 >📋  Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
+
+
+## Reference
+
+[1] Sohn, Kihyuk, et al. "Fixmatch: Simplifying semi-supervised learning with consistency and confidence." Advances in Neural Information Processing Systems 33 (2020): 596-608.
+[2] Jeong, Wonyong, et al. "Federated semi-supervised learning with inter-client consistency & disjoint learning." arXiv preprint arXiv:2006.12097 (2020).
