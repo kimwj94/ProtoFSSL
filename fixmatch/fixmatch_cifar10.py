@@ -70,7 +70,7 @@ rounds = 300
 num_client = 100
 num_active_client=5
 num_class = 10
-if iid = 'iid':
+if iid == 'iid':
     is_iid = True
 else:
     is_iid = False
@@ -264,6 +264,22 @@ def build_global_model():
     
     return get_model()
     
+
+def difference_model_norm_2_square(global_model, local_model):
+    """Calculates the squared l2 norm of a model difference (i.e.
+    local_model - global_model)
+    Args:
+        global_model: the model broadcast by the server
+        local_model: the current, in-training model
+
+    Returns: the squared norm
+
+    """
+    model_difference = tf.nest.map_structure(lambda a, b: a - b,
+                                           local_model,
+                                           global_model)
+    squared_norm = tf.square(tf.linalg.global_norm(model_difference))
+    return squared_norm
 
 class Server:
     def __init__(self, 

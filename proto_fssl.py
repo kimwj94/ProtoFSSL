@@ -1,5 +1,3 @@
-
-
 import os
 import sys
 import copy
@@ -303,13 +301,13 @@ if __name__=='__main__':
             print('comp dist')
             client_prototypes, dist, dist_avg = server.comp_dist()
 
-            with open(os.path.join(result_path, FLAGS.exp_name + '_clientprototypes'), 'w+') as f:
+            with open(os.path.join(result_path, FLAGS.exp_name + '_clientprototypes'), 'a+') as f:
                 f.write(str(client_prototypes))
 
-            with open(os.path.join(result_path, FLAGS.exp_name + '_dist'), 'w+') as f:
+            with open(os.path.join(result_path, FLAGS.exp_name + '_dist'), 'a+') as f:
                 f.write(str(dist))
 
-            with open(os.path.join(result_path, FLAGS.exp_name + '_distavg'), 'w+') as f:
+            with open(os.path.join(result_path, FLAGS.exp_name + '_distavg'), 'a+') as f:
                 f.write(str(dist_avg))
             
     dt_string = startTime.strftime("%Y%m%d %H%M")

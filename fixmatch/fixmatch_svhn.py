@@ -1,5 +1,6 @@
 from imgaug import augmenters as iaa
 import os
+import sys
 import copy
 import math
 import time
@@ -70,7 +71,7 @@ rounds = 300
 num_client = 100
 num_active_client=5
 num_class = 10
-if iid = 'iid':
+if iid == 'iid':
     is_iid = True
 else:
     is_iid = False
