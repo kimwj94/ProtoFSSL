@@ -29,14 +29,14 @@ If you want FedProx framework, use `--fl_framework` argument (default is FedAvg)
 python proto_fssl.py --exp_name name_you_want --dataset cifar10 --model res9 --fl_framework fedprox --non_iid
 ```
 
-### Other models
+### Other methods
 If you want to use other methods that appears in the paper, check input arguments or `run_training.sh` files.  
-For FixMatch[[1]]([1]) method, we use codes in `./fixmatch/` directory. Use this command:
+For FixMatch[[1]](#reference) method, we use codes in `./fixmatch/` directory. Use this command:
 ```
 python fixmatch_cifar10.py name_you_want fedavg iid
 ```
-You can use `fedprox` instead of `fedavg` and `noniid` instead of `iid`.
-For FedMatch[2], we use their [official code](https://github.com/wyjeong/FedMatch) in the paper.
+You can use `fedprox` instead of `fedavg` and `noniid` instead of `iid`.  
+For FedMatch[[2]](#reference), we use their [official code](https://github.com/wyjeong/FedMatch) in the paper.
 
 
 
@@ -54,39 +54,30 @@ num_unlabel: Number of unlabeled data per client, default: 490
 local_episode: Number of local episode, default: 10
 unlabel_round: Starting training round to use unlabeled data(non-inclusive), default: 0
 optimizer: Which optimizer to use(rmsprop, sgd, adam), default: rmsprop
+opt_lr: Learning rate for optimizer, default: 1e-3
 num_client: Number of clients, default: 100
 num_active_client: Number of active clients, default: 5
 unlabel_loss_type: Loss type to train unlabeled data. one of [CE, MSE], default: CE
+is_sl: Whether to do supervised learning
+fl_framework: Federated Learning framework. One of [fedavg, fedprox], default: fedavg
+mu: Regularization hyperparameter for fedprox, default: 1e-3
+s_label: Number of samples for support set in each episode, default: 1
+q_label: Number of samples for query set in each episode, default: 2
+q_unlabel: Number of samples for query set from unlabeled data in each episode, default: 100
+use_noise: Whether to add gaussian noise to prototypes when sending to server, default: False
+stddev: Stddev of gaussian noise for prorotypes, default: 0.0
 ```
-
->📋  Describe how to train the models, with example commands on how to train the models in your paper, including the full training procedure and appropriate hyperparameters.
 
 ## Evaluation
 
-
-The results is saved in result folder.
-
-To evaluate my model on ImageNet, run:
-
-```eval
-python eval.py --model-file mymodel.pth --benchmark imagenet
-```
-
->📋  Describe how to evaluate the trained models on benchmarks reported in the paper, give commands that produce the results (section below).
+The results are saved in result folder. There will be three files: training, validation, and test accuracy. Each time the validation accuracy updates the highest value, the test account is recorded. So, the final test accuracy is at the end of the file of the test accuracy.
 
 
 ## Results
 
 Our model achieves the following performance on :
-
-### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
-
-| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
-| ------------------ |---------------- | -------------- |
-| My awesome model   |     85%         |      95%       |
-
->📋  Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
-
+  
+![accuracy](./img/accuracy_table.jpg)
 
 ## Reference
 
