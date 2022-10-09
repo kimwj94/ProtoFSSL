@@ -17,7 +17,9 @@ class Server:
                 num_active_client=5,
                 keep_proto_rounds=1,
                 is_sl=False,
-                print_log=True):
+                fixmatch=False,
+                print_log=True,
+                helper_cnt=5):
         self.global_model = global_model
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
@@ -29,15 +31,58 @@ class Server:
         self.num_active_client = num_active_client
         self.keep_proto_rounds = keep_proto_rounds
         self.is_sl = is_sl
+        self.fixmatch = fixmatch
         self.print_log = print_log
+        self.helper_cnt = helper_cnt
+
+        assert self.helper_cnt <= self.keep_proto_rounds * self.num_active_client, \
+            "Helper count should be smaller than or equal to keep_proto_rounds * num_active_clients"
    
     # return: global model weights
     def get_global_model_weights(self):
         return self.global_model.get_weights()
     
-    def get_client_prototype(self):
-        return self.client_prototype_list
-    
+    def get_client_prototype(self):     
+
+        # If no client is collected return empty list
+        if len(self.client_prototype_list) == 0:
+            return self.client_prototype_list
+
+        # # If no client is collected return empty list
+        # if len(self.client_prototype_list) == self.num_active_client:
+        #     return self.client_prototype_list
+                
+        valid_tbl = np.ones([len(self.client_prototype_list), self.num_class])
+
+        # Find missing classes in prototypes
+        for idx, client_prototype in enumerate(self.client_prototype_list):
+            if len(tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8)) > 0:
+                invalid_idx = tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8).numpy()
+                valid_tbl[idx, invalid_idx] = 0
+
+
+        new_client_list = []
+        helper_cnt = self.helper_cnt
+
+        all_protos = np.stack(self.client_prototype_list) #(num_client, 10, 512)
+        global_proto = all_protos * np.expand_dims(valid_tbl, axis=-1)
+        
+        global_proto = np.sum(global_proto, axis=0) / np.expand_dims(np.sum(valid_tbl, axis=0), -1)
+        
+        for idx, client_prototype in enumerate(self.client_prototype_list):                        
+            client_prototype = client_prototype.numpy()
+            if idx < len(self.client_prototype_list) - helper_cnt:
+                continue
+            if len(np.where(valid_tbl[idx] == 0)) > 0:                
+                invalid_idx = np.where(valid_tbl[idx] == 0)[0]                                         
+                for c in invalid_idx:                                                                             
+                    client_prototype[c] = global_proto[c]
+                new_client_list.append(client_prototype)
+            else:
+                new_client_list.append(client_prototype)        
+
+        return new_client_list
+
     def comp_dist(self):
         dist_list = [[] for _ in range(10)]
         dist_avg_list = []
@@ -71,7 +116,8 @@ class Server:
 
     def update_client_prototypes(self):
         if len(self.client_prototype_list) > self.num_active_client * self.keep_proto_rounds:
-            self.client_prototype_list = self.client_prototype_list[-self.num_active_client * self.keep_proto_rounds:]
+            self.client_prototype_list = self.client_prototype_list[-self.num_active_client * self.keep_proto_rounds:]        
+
 
     # input: client model weight
     # save client model weights
@@ -106,6 +152,9 @@ class Server:
         total_num = per_class * self.num_class        
         div = 10
         per_class_div = per_class // div
+        
+        eval_prototypes = self.get_client_prototype()
+        
         for i in range(div):
             query_set_label = []
 
@@ -122,8 +171,13 @@ class Server:
             cat = tf.concat([query_set_label], axis=0)
             z = model(cat, training=False)
 
-            client_predictions = []
-            for client_proto in self.client_prototype_list:
+            client_predictions = []            
+            valid_tbl = np.ones((len(eval_prototypes), self.num_class), dtype=np.float32)
+
+            for client_proto in eval_prototypes:
+                if len(tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8)) > 0:
+                    invalid_idx = tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8).numpy()
+                    valid_tbl[i, invalid_idx] = 0
                 q_dists_client = calc_euclidian_dists(z, client_proto)
                 p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
 
@@ -131,7 +185,8 @@ class Server:
 
             # average all distribution
             client_p = tf.stack(client_predictions, axis=0)
-            averaged_p = tf.reduce_mean(client_p, axis=0)
+            averaged_p = tf.reduce_sum(client_p, axis=0) / tf.reshape(tf.reduce_sum(valid_tbl, axis=0), [1, self.num_class]) # (q_unlabel, num_class)
+            # averaged_p = tf.reduce_mean(client_p, axis=0)
             preds = np.argmax(tf.reshape(averaged_p, [self.num_class, per_class_div, -1]), axis=-1)
             eq = np.equal(preds, y.astype(int)).astype(np.float32)
 
@@ -191,7 +246,7 @@ class Server:
 
     def test_accuracy(self, r):
 
-        if self.is_sl:
+        if self.is_sl or self.fixmatch:
             acc, loss = self.get_accuracy_sl(self.test_dataset, self.global_model)
         else:
             acc, loss = self.get_accuracy(self.test_dataset, self.global_model)
@@ -203,7 +258,7 @@ class Server:
     
     def val_accuracy(self, r):
 
-        if self.is_sl:
+        if self.is_sl or self.fixmatch:
             acc, loss = self.get_accuracy_sl(self.val_dataset, self.global_model)
         else:
             acc, loss = self.get_accuracy(self.val_dataset, self.global_model)

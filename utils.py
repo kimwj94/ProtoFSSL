@@ -14,7 +14,7 @@ def calc_euclidian_dists(x, y, root=False):
     m = y.shape[0] # ptototype 개수
     x = tf.tile(tf.expand_dims(x, 1), [1, m, 1]) # embedding vector 가 10번 반복됨.
     y = tf.tile(tf.expand_dims(y, 0), [n, 1, 1]) # 모든 prototype이 있음
-    #return tf.math.pow(tf.reduce_sum(tf.math.pow(x - y, 2), 2), 0.5)
+    # return tf.math.pow(tf.reduce_sum(tf.math.pow(x - y, 2), 2), 0.5)
     return tf.reduce_mean(tf.math.pow(x - y, 2), 2)
 
 
@@ -22,6 +22,26 @@ def calc_euclidian_dists(x, y, root=False):
 def get_prototype(z, s_label, num_class, add_noise=False, stddev = 0.0):
     z_prototypes = tf.reshape(z[:num_class*s_label], [num_class, s_label, z.shape[-1]])
     z_prototypes = tf.math.reduce_mean(z_prototypes, axis=1)
+    
+    if add_noise:
+        noise_layer = tf.keras.layers.GaussianNoise(stddev)
+        z_prototypes = noise_layer(z_prototypes, training=True)
+
+    return z_prototypes
+
+def get_prototype2(z, labels, num_class, add_noise=False, stddev = 0.0):    
+    # z_prototypes = tf.reshape(z[:num_class*s_label], [num_class, s_label, z.shape[-1]])
+    z_prototypes = []
+    for c in range(num_class):        
+        if len(tf.where(labels == c)) > 0:            
+            z_idx = tf.where(labels == c)            
+            z_prototypes.append(tf.reshape(tf.reduce_mean(tf.gather(z, z_idx), axis=0), [-1]))            
+        else:            
+            z_prototypes.append(tf.ones(z.shape[-1])* 1E9)
+
+    z_prototypes = tf.stack(z_prototypes) #, dtype=tf.float32)
+    
+    assert z_prototypes.shape[0] == num_class, "The number of prototypes should be equal to num_class"
     
     if add_noise:
         noise_layer = tf.keras.layers.GaussianNoise(stddev)
