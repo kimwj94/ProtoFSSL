@@ -12,7 +12,7 @@ from tensorflow.keras.optimizers import Adam, RMSprop, SGD
 
 from fed.server import Server
 from fed.client import Client
-from nets.resnet import ResNet9, ResNet18, WideResNet28x2
+from nets.resnet import ResNet9, ResNet18, WideResNet28x2, ResNet9_256d
 from datasets import get_dataset
 
 
@@ -20,9 +20,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--exp_name', default='protofssl', help='Experiment name')
 parser.add_argument('--seed', type=int, default=1000, help='Random seed for training')
 parser.add_argument('--dataset', default='cifar10', help='The name of the datset. One of [cifar10, svhn, stl10], default: cifar10')
-parser.add_argument('--model', default='res9', help='Model type. One of [res9, res18, wres28x2]')
+parser.add_argument('--model', default='res9', help='Model type. One of [res9, res18, wres28x2, res9_256d]')
 parser.add_argument('--bn_type', default=None, help='Batch normalization type one of [bn, sbn, gn], default: None')
 parser.add_argument('--non_iid', action='store_true', help='Run non-iid distributed data')
+parser.add_argument('--extreme_non_iid', action='store_true', help='Run extreme non-iid distributed data(Both label and unlabel non-iid')
 parser.add_argument('--num_round', type=int, default=300, help='Number of training round, default: 300')
 parser.add_argument('--num_label', type=int, default=5, help='Number of labeled data per client per class, default: 5')
 parser.add_argument('--num_unlabel', type=int, default=490, help='Number of unlabeled data per client, default: 490')
@@ -36,9 +37,11 @@ parser.add_argument('--num_active_client', type=int, default=5, help='Number of 
 parser.add_argument('--unlabel_loss_type', default='CE', help='Loss type to train unlabeled data, default: CE')
 parser.add_argument('--refine_at_begin', action='store_true', help='Prototype refinement is done at the beginning of the epoch')
 parser.add_argument('--keep_proto_rounds', type=int, default=1, help='Number of old prototypes to keep, default: 1')
+parser.add_argument('--helper_cnt', type=int, default=5, help='Number of helper clients, default: 5')
 parser.add_argument('--warmup_episode', type=int, default=0, help='Warmup episode before using unlabeled data, default: 0')
 parser.add_argument('--l2_factor', type=float, default=1e-4, help='L2 Regularization factor, default: 1e-4')
 parser.add_argument('--is_sl', action='store_true', help='Whether to do supervised learning')
+parser.add_argument('--fixmatch', action='store_true', help='Whether to use fixmatch technique')
 
 parser.add_argument('--fl_framework', default='fedavg', help='Federated Learning framework. One of [fedavg, fedprox], default: fedavg')
 parser.add_argument('--mu', type=float, default=1e-3, help='Regularization hyperparameter for fedprox')
@@ -52,6 +55,7 @@ parser.add_argument('--stddev', type=float, default=0.0, help='Stddev of gaussia
 
 parser.add_argument('--print_log', type=bool, default=True, help='Whether to print log')
 parser.add_argument('--comp_dist', type=bool, default=False, help='Whether to compute distance between helper clients')
+
 
 FLAGS = parser.parse_args()
 
@@ -81,7 +85,10 @@ S_LABEL = FLAGS.s_label
 Q_LABEL = FLAGS.q_label
 Q_UNLABEL = FLAGS.q_unlabel # number of unlabeled data for query set
 
-IS_IID = False if FLAGS.non_iid else True# distribution of unlabeled data
+IS_IID = False if FLAGS.non_iid else True # distribution of unlabeled data
+IS_XNID = True if FLAGS.extreme_non_iid else False # Test extreme non-iid case, both labeled and unlabeled non-iid distribution
+if IS_XNID:
+    assert not IS_IID, "Non-iid flag should be True if extreme non-iid case should be tested"
 
 NUM_LABEL = FLAGS.num_label # number of labeled data per class for one client
 NUM_UNLABEL = FLAGS.num_unlabel # number of unlabeled data for one client
@@ -118,6 +125,8 @@ def get_model(model_name='res9', input_shape=(32,32,3), l2_factor=1e-4, is_sl=Fa
         model = ResNet9(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, l2_factor=l2_factor, is_sl=is_sl, num_classes=num_classes)
     elif model_name == 'res18':
         model = ResNet18(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, l2_factor=l2_factor, is_sl=is_sl, num_classes=num_classes)
+    elif model_name == 'res9_256d':
+        model = ResNet9_256d(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, l2_factor=l2_factor, is_sl=is_sl, num_classes=num_classes)
     elif model_name == 'wres28x2':
         model = WideResNet28x2(input_shape=input_shape, bn=FLAGS.bn_type, pool_list=pool_list, is_sl=is_sl, num_classes=num_classes)
 
@@ -135,13 +144,18 @@ if __name__=='__main__':
     # Get starting time
     startTime = datetime.now()
 
+    random.seed(SEED_NUM)            
+    np.random.seed(SEED_NUM)
+    tf.random.set_seed(SEED_NUM)     
+
     client_dataset, val_dataset, test_dataset, NUM_CLASS, INPUT_SHAPE, client_labels = get_dataset(dataset_name=FLAGS.dataset,
                                                                                     is_iid=IS_IID,
+                                                                                    is_xnid=IS_XNID,
                                                                                     num_client=NUM_CLIENT,
                                                                                     num_label=NUM_LABEL,
                                                                                     num_unlabel=NUM_UNLABEL,
                                                                                     is_sl=FLAGS.is_sl)
-    server_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl, num_classes=NUM_CLASS)
+    server_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl or FLAGS.fixmatch, num_classes=NUM_CLASS)
     print('Model built:', FLAGS.model)   
     print(server_model.summary())
 
@@ -153,7 +167,9 @@ if __name__=='__main__':
                     num_active_client=NUM_ACTIVE_CLIENT,
                     keep_proto_rounds=KEEP_PROTO_ROUNDS,
                     is_sl=FLAGS.is_sl,
-                    print_log=PRINT_LOG)
+                    fixmatch=FLAGS.fixmatch,
+                    print_log=PRINT_LOG, 
+                    helper_cnt=FLAGS.helper_cnt)
 
     client_list = []
 
@@ -193,7 +209,7 @@ if __name__=='__main__':
     max_val, max_test = 0.0, 0.0
     max_round = 0
     cycle = 1
-    client_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl, num_classes=NUM_CLASS)
+    client_model = get_model(FLAGS.model, INPUT_SHAPE, l2_factor=FLAGS.l2_factor, is_sl=FLAGS.is_sl or FLAGS.fixmatch, num_classes=NUM_CLASS)
 
     train_record_list = []
     val_record_list = []
@@ -207,7 +223,10 @@ if __name__=='__main__':
         server.reset_weight()
         #server.reset_prototype()
         
-        random.seed(r+SEED_NUM)
+        random.seed(r+SEED_NUM)            
+        np.random.seed(r+SEED_NUM)
+        tf.random.set_seed(r+SEED_NUM)     
+
         client_idx = random.sample(range(NUM_CLIENT), NUM_ACTIVE_CLIENT)
 
         if FLAGS.refine_at_begin:
@@ -223,19 +242,29 @@ if __name__=='__main__':
         
         total_client_acc = 0.0
         total_client_loss = 0.0
+        total_client_loss_unlabel = 0.0
 
-        if FLAGS.is_sl:
+        if FLAGS.is_sl or FLAGS.fixmatch:
              # for each client
             for c in range(NUM_ACTIVE_CLIENT):      
-                # training with global model 
-                client_weight, client_acc, client_loss \
-                    = client_list[client_idx[c]].supervised_training(
-                                                        client_dataset,
-                                                        client_labels,
-                                                        client_idx[c],
-                                                        client_model,
-                                                        copy.deepcopy(global_model_weights),
-                                                        r)
+                if FLAGS.is_sl:
+                    # training with global model 
+                    client_weight, client_acc, client_loss \
+                        = client_list[client_idx[c]].supervised_training(
+                                                            client_dataset,
+                                                            client_labels,
+                                                            client_idx[c],
+                                                            client_model,
+                                                            copy.deepcopy(global_model_weights),
+                                                            r)
+                else:
+                    client_weight, client_acc, client_loss \
+                        = client_list[client_idx[c]].fixmatch_training(
+                                                            client_dataset,
+                                                            client_idx[c],
+                                                            client_model,
+                                                            copy.deepcopy(global_model_weights),
+                                                            r)
                 
                 total_client_acc += client_acc
                 total_client_loss += client_loss
@@ -251,7 +280,7 @@ if __name__=='__main__':
             # for each client
             for c in range(NUM_ACTIVE_CLIENT):      
                 # training with global model 
-                client_weight, client_prototype, client_acc, client_loss \
+                client_weight, client_prototype, client_acc, client_loss, client_loss_unlabel \
                     = client_list[client_idx[c]].training(
                                                         client_dataset,
                                                         client_idx[c],
@@ -264,6 +293,7 @@ if __name__=='__main__':
                 
                 total_client_acc += client_acc
                 total_client_loss += client_loss
+                total_client_loss_unlabel += client_loss_unlabel
 
                 # server receive client weights and prototypes
                 server.rec_client_model_weights(client_weight)
@@ -276,13 +306,13 @@ if __name__=='__main__':
         # FedAvg 
         server.fed_avg()
         if PRINT_LOG:
-            print("--Training acc: {}, loss: {}".format(total_client_acc, total_client_loss))
+            print("--Training acc: {}, loss: {}, unlabel_loss: {}".format(total_client_acc, total_client_loss, total_client_loss_unlabel))
         train_record_list.append("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
         
         #with open(path + '/' +exp+'_train_acc' , 'a+') as f:
         #    f.write("{},{},{}\n".format(r+1,total_client_acc, total_client_loss))
 
-        if r >= 100:
+        if r >= 100: #max(100, UNLABEL_ROUND):
             # val & test accuracy
             val_loss, val_acc = server.val_accuracy(r+1)            
             

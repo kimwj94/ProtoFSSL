@@ -31,8 +31,24 @@ python proto_fssl.py --exp_name svhn --dataset svhn --model res9
 python proto_fssl.py --exp_name stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980
 
 #base models, non-iid
-python proto_fssl.py --exp_name cifar10 --dataset cifar10 --model res9 --non_iid
-python proto_fssl.py --exp_name svhn --dataset svhn --model res9 --non_iid
+python proto_fssl.py --exp_name cifar10_nid --dataset cifar10 --model res9 --non_iid
+python proto_fssl.py --exp_name svhn_nid --dataset svhn --model res9 --non_iid
+
+
+#base models, severe non-iid
+python proto_fssl.py --exp_name fedavg_xnid --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name fedavg_part_xnid --model res9 --is_sl --num_label 5  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name fixmatch_xnid --model res9  --fixmatch --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name cifar10_xnid --dataset cifar10 --model res9 --non_iid --extreme_non_iid --local_episode 15 --q_unlabel 200 --unlabel_round 200 --keep_proto_rounds 10 --helper_cnt 15 --seed 101
+
+python proto_fssl.py --exp_name fedavg_svhn_xnid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name fedavg_part_xnid --dataset svhn --model res9 --is_sl --num_label 5  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name fixmatch_svhn_xnid --dataset svhn --model res9  --fixmatch --local_episode 2 --non_iid --extreme_non_iid --seed 101 
+python proto_fssl.py --exp_name svhn_xnid --dataset svhn --model res9 --non_iid --extreme_non_iid --local_episode 15 --q_unlabel 200 --unlabel_round 200 --keep_proto_rounds 10 --helper_cnt 15 --seed 101 
+
+
+#fixmatch, severe non-iid
+python proto_fssl.py --exp_name cifar10_fixmatch --dataset cifar10 --model res9 --fixmatch --seed 1001 --local_episode 2 --non_iid
 
 #With BN
 python proto_fssl.py --exp_name cifar10_bn --dataset cifar10 --model res9 --bn_type bn

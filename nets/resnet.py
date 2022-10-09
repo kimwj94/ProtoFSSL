@@ -131,6 +131,115 @@ class ResNet9(tf.keras.Model):
         
         return out
 
+
+class ResNet9_256d(tf.keras.Model):
+
+    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4], l2_factor=1e-4, is_sl=False, num_classes=10):
+        super().__init__()
+        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn, l2_factor=l2_factor)
+        self.res1 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn, l2_factor=l2_factor)
+        self.res2 = Sequential([self.conv_block(128, bn=bn, l2_factor=l2_factor), self.conv_block(128, bn=bn, l2_factor=l2_factor)])
+        self.res3 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn, l2_factor=l2_factor)
+        self.res4 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn, l2_factor=l2_factor)
+        self.res5 = Sequential([self.conv_block(512, bn=bn, l2_factor=l2_factor), self.conv_block(512, bn=bn, l2_factor=l2_factor)])
+        reduce_layer = Conv2D(256, kernel_size=(1, 1), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor))
+        self.res6 = Sequential([MaxPool2D(pool_size=pool_list[3]), reduce_layer, Flatten()])
+        self.is_sl = is_sl
+        if self.is_sl:
+            self.fc = Dense(num_classes, use_bias=True, activation='softmax')
+
+    def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None):
+        layers = []
+        if input_shape is None:
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor)))
+        else:
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor), input_shape=input_shape))
+        
+        if bn == 'bn':
+            layers.append(BatchNormalization(axis=-1))
+        elif bn == 'gn':
+            layers.append(tfa.layers.GroupNormalization(groups=32, axis=-1))
+        elif bn == 'sbn':
+            layers.append(BatchNormalization(axis=-1, momentum=0))
+
+        layers.append(ReLU())        
+        if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
+
+        return Sequential(layers)
+
+    def call(self, inputs):
+        out = self.conv1(inputs)
+        out = self.res1(out)
+        out = self.res2(out) + out
+        
+        out = self.res3(out)
+        out = self.res4(out)
+        out = self.res5(out) + out
+
+        out = self.res6(out)
+        if self.is_sl:
+            out = self.fc(out)
+        
+        return out
+
+class ResNet9_128d(tf.keras.Model):
+
+    def __init__(self, input_shape, bn=None, pool_list=[2,2,2,4], l2_factor=1e-4, is_sl=False, num_classes=10):
+        super().__init__()
+        self.conv1 = self.conv_block(64, input_shape=input_shape, bn=bn, l2_factor=l2_factor)
+        self.res1 = self.conv_block(128, pool=True, pool_no=pool_list[0], bn=bn, l2_factor=l2_factor)
+        self.res2 = Sequential([self.conv_block(128, bn=bn, l2_factor=l2_factor), self.conv_block(128, bn=bn, l2_factor=l2_factor)])
+        self.res3 = self.conv_block(256, pool=True, pool_no=pool_list[1], bn=bn, l2_factor=l2_factor)
+        self.res4 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn, l2_factor=l2_factor)
+        self.res5 = Sequential([self.conv_block(512, bn=bn, l2_factor=l2_factor), self.conv_block(512, bn=bn, l2_factor=l2_factor)])
+        reduce_layer1 = Conv2D(256, kernel_size=(1, 1), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor))
+        reduce_layer2 = Conv2D(128, kernel_size=(1, 1), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor))
+        self.res6 = Sequential([MaxPool2D(pool_size=pool_list[3]), reduce_layer1, reduce_layer2, Flatten()])
+        self.is_sl = is_sl
+        if self.is_sl:
+            self.fc = Dense(num_classes, use_bias=True, activation='softmax')
+
+    def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None):
+        layers = []
+        if input_shape is None:
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor)))
+        else:
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+                            kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor), input_shape=input_shape))
+        
+        if bn == 'bn':
+            layers.append(BatchNormalization(axis=-1))
+        elif bn == 'gn':
+            layers.append(tfa.layers.GroupNormalization(groups=32, axis=-1))
+        elif bn == 'sbn':
+            layers.append(BatchNormalization(axis=-1, momentum=0))
+
+        layers.append(ReLU())        
+        if pool: layers.append(MaxPool2D(pool_size=(pool_no, pool_no)))
+
+        return Sequential(layers)
+
+    def call(self, inputs):
+        out = self.conv1(inputs)
+        out = self.res1(out)
+        out = self.res2(out) + out
+        
+        out = self.res3(out)
+        out = self.res4(out)
+        out = self.res5(out) + out
+
+        out = self.res6(out)
+        if self.is_sl:
+            out = self.fc(out)
+        
+        return out
+
 def conv3x3(in_planes: int, out_planes: int, strides: int = 1, groups: int = 1, l2_factor=1e-4):
     """3x3 convolution with padding"""
     return Conv2D(
