@@ -47,24 +47,19 @@ class Server:
         # If no client is collected return empty list
         if len(self.client_prototype_list) == 0:
             return self.client_prototype_list
-
-        # # If no client is collected return empty list
-        # if len(self.client_prototype_list) == self.num_active_client:
-        #     return self.client_prototype_list
                 
-        valid_tbl = np.ones([len(self.client_prototype_list), self.num_class])
+        valid_tbl = np.ones([len(self.client_prototype_list[-self.helper_cnt:]), self.num_class])
 
         # Find missing classes in prototypes
-        for idx, client_prototype in enumerate(self.client_prototype_list):
+        for idx, client_prototype in enumerate(self.client_prototype_list[-self.helper_cnt:]):
             if len(tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8)) > 0:
                 invalid_idx = tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8).numpy()
                 valid_tbl[idx, invalid_idx] = 0
 
 
-        new_client_list = []
-        helper_cnt = self.helper_cnt
+        new_client_list = []        
 
-        all_protos = tf.stack(self.client_prototype_list) #(num_client, 10, 512)
+        all_protos = tf.stack(self.client_prototype_list[-self.helper_cnt:]) #(num_client, 10, 512)
         valid_tbl = tf.cast(valid_tbl, tf.float32)
         global_proto = all_protos * tf.expand_dims(valid_tbl, axis=-1)
         
@@ -73,21 +68,22 @@ class Server:
         #Normalize
         global_proto /= tf.norm(global_proto, axis=-1, keepdims=True)
         
-        # Plug in prototypes for missing classes in which clients do not have some classes
-        for idx, client_prototype in enumerate(self.client_prototype_list):                        
-            client_prototype = client_prototype.numpy()
-            if idx < len(self.client_prototype_list) - helper_cnt:
-                continue
-            if len(np.where(valid_tbl[idx] == 0)) > 0:                
-                invalid_idx = np.where(valid_tbl[idx] == 0)[0]                                         
-                for c in invalid_idx:                                                                             
-                    client_prototype[c] = global_proto[c]
-                new_client_list.append(client_prototype)
-            else:
-                new_client_list.append(client_prototype)        
+        # # Plug in prototypes for missing classes in which clients do not have some classes
+        # for idx, client_prototype in enumerate(self.client_prototype_list):                        
+        #     client_prototype = client_prototype.numpy()
+        #     if idx < len(self.client_prototype_list) - self.helper_cnt:
+        #         continue
+        #     if len(np.where(valid_tbl[idx] == 0)) > 0:                
+        #         invalid_idx = np.where(valid_tbl[idx] == 0)[0]                                         
+        #         for c in invalid_idx:                                                                             
+        #             client_prototype[c] = global_proto[c]
+        #         new_client_list.append(client_prototype)
+        #     else:
+        #         new_client_list.append(client_prototype)        
 
-        ### TEST: Use Global proto for pseudo-label
+        # Use Global proto for pseudo-label
         new_client_list = [global_proto]
+        
 
         return new_client_list
 

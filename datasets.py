@@ -136,6 +136,10 @@ def get_svhn_dataset():
 # get train/validation/test dataset
 def get_stl10_dataset():
     
+    import resource
+    low, high = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (high, high))
+
     train_dataset = tfds.load(name="stl10", split=tfds.Split.TRAIN)
     test_dataset = tfds.load(name="stl10", split=tfds.Split.TEST)
     unlabeled_dataset = tfds.load(name="stl10", split='unlabelled')
