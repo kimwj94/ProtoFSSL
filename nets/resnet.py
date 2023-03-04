@@ -91,17 +91,19 @@ class ResNet9(tf.keras.Model):
         self.res4 = self.conv_block(512, pool=True, pool_no=pool_list[2], bn=bn, l2_factor=l2_factor)
         self.res5 = Sequential([self.conv_block(512, bn=bn, l2_factor=l2_factor), self.conv_block(512, bn=bn, l2_factor=l2_factor)])
         self.res6 = Sequential([MaxPool2D(pool_size=pool_list[3]), Flatten()])
+        # self.res6 = Sequential([Conv2D(512, kernel_size=(3,3), strides=(2,2)), Flatten()])
+        
         self.is_sl = is_sl
         if self.is_sl:
             self.fc = Dense(num_classes, use_bias=True, activation='softmax')
 
-    def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None):
+    def conv_block(self, out_channels, input_shape=None, pool=False, pool_no=2, l2_factor=1e-4, bn=None, stride=1):
         layers = []
         if input_shape is None:
-            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(stride, stride), 
                             kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor)))
         else:
-            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(1, 1), 
+            layers.append(Conv2D(out_channels, kernel_size=(3, 3), padding='same', use_bias=True, strides=(stride, stride), 
                             kernel_initializer=VarianceScaling(),  kernel_regularizer=l2(l2_factor), input_shape=input_shape))
         
         if bn == 'bn':
@@ -126,6 +128,7 @@ class ResNet9(tf.keras.Model):
         out = self.res5(out) + out
 
         out = self.res6(out)
+        
         if self.is_sl:
             out = self.fc(out)
         

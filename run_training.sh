@@ -1,29 +1,29 @@
 #!/bin/bash
 # FedAvg -Full SL
-python proto_fssl.py --exp_name fedavg_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2
-python proto_fssl.py --exp_name fedavg_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid
-python proto_fssl.py --exp_name fedavg_svhn --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2
-python proto_fssl.py --exp_name fedavg_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid
+# python proto_fssl.py --exp_name fedavg_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2
+# python proto_fssl.py --exp_name fedavg_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid
+# python proto_fssl.py --exp_name fedavg_svhn --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2
+# python proto_fssl.py --exp_name fedavg_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid
 
-# FedProx -Full SL
-python proto_fssl.py --exp_name fedprox_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox
-python proto_fssl.py --exp_name fedprox_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
-python proto_fssl.py --exp_name fedprox_svhn --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --fl_framework fedprox
-python proto_fssl.py --exp_name fedprox_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --fl_framework fedprox --non_iid
+# # FedProx -Full SL
+# python proto_fssl.py --exp_name fedprox_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
+# python proto_fssl.py --exp_name fedprox_svhn --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_svhn_nid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --mu 1e-4 --fl_framework fedprox --non_iid
 
-#FedAvg - Partial SL
-python proto_fssl.py --exp_name fedavg_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2
-python proto_fssl.py --exp_name fedavg_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
-python proto_fssl.py --exp_name fedavg_part_svhn --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2
-python proto_fssl.py --exp_name fedavg_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
-python proto_fssl.py --exp_name fedavg_part_stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 0 --local_episode 2
+# #FedAvg - Partial SL
+# python proto_fssl.py --exp_name fedavg_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2
+# python proto_fssl.py --exp_name fedavg_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
+# python proto_fssl.py --exp_name fedavg_part_svhn --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2
+# python proto_fssl.py --exp_name fedavg_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
+# python proto_fssl.py --exp_name fedavg_part_stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 0 --local_episode 2
 
-#FedProx - Partial SL
-python proto_fssl.py --exp_name fedprox_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
-python proto_fssl.py --exp_name fedprox_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
-python proto_fssl.py --exp_name fedprox_part_svhn --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-4 --fl_framework fedprox
-python proto_fssl.py --exp_name fedprox_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-4 --fl_framework fedprox --non_iid
-python proto_fssl.py --exp_name fedprox_part_stl10 --dataset stl10 --model res9 --is_sl --num_label 10 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
+# #FedProx - Partial SL
+# python proto_fssl.py --exp_name fedprox_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox --non_iid
+# python proto_fssl.py --exp_name fedprox_part_svhn --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-4 --fl_framework fedprox
+# python proto_fssl.py --exp_name fedprox_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-4 --fl_framework fedprox --non_iid
+# python proto_fssl.py --exp_name fedprox_part_stl10 --dataset stl10 --model res9 --is_sl --num_label 10 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
 
 #base models, iid
 python proto_fssl.py --exp_name cifar10 --dataset cifar10 --model res9 
@@ -48,7 +48,7 @@ python proto_fssl.py --exp_name svhn_xnid --dataset svhn --model res9 --non_iid 
 
 
 #fixmatch, severe non-iid
-python proto_fssl.py --exp_name cifar10_fixmatch --dataset cifar10 --model res9 --fixmatch --seed 1001 --local_episode 2 --non_iid
+# python proto_fssl.py --exp_name cifar10_fixmatch --dataset cifar10 --model res9 --fixmatch --seed 1001 --local_episode 2 --non_iid
 
 #With BN
 python proto_fssl.py --exp_name cifar10_bn --dataset cifar10 --model res9 --bn_type bn
@@ -65,14 +65,14 @@ python proto_fssl.py --exp_name fedprox_stl10_bn --dataset stl10 --model res9 --
 
 # Ablations - normalization
 # FedAvg
-python proto_fssl.py --exp_name fedavg_cifar10_bn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type bn
-python proto_fssl.py --exp_name fedavg_cifar10_bn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type bn
-python proto_fssl.py --exp_name fedavg_cifar10_gn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type gn
-python proto_fssl.py --exp_name fedavg_cifar10_gn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type gn
-python proto_fssl.py --exp_name fedavg_cifar10_sbn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
-python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
-python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
-python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+# python proto_fssl.py --exp_name fedavg_cifar10_bn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type bn
+# python proto_fssl.py --exp_name fedavg_cifar10_bn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type bn
+# python proto_fssl.py --exp_name fedavg_cifar10_gn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type gn
+# python proto_fssl.py --exp_name fedavg_cifar10_gn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type gn
+# python proto_fssl.py --exp_name fedavg_cifar10_sbn --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+# python proto_fssl.py --exp_name fedavg_cifar10_sbn_nid --dataset cifar10 --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
+# python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --bn_type sbn
+# python proto_fssl.py --exp_name fedavg_cifar10_res18_sbn_nid --dataset cifar10 --model res18 --is_sl --num_label 54  --local_episode 2 --non_iid --bn_type sbn
 
 # ProtoFSSL
 python proto_fssl.py --exp_name cifar10_bn --dataset cifar10 --model res9 --bn_type bn

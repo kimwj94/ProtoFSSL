@@ -302,13 +302,6 @@ def get_client_dataset(dataset, ratio_label, ratio_unlabel, num_client=100, num_
     for label in range(num_class):
         num_data = len(dataset[label])
         idx = 0
-        # distribute label
-        # if label_iid:            
-        #     for client in range(num_client):
-        #         for _ in range(num_label):
-        #             client_dataset[client][str(label)].append(dataset[label][idx])
-        #             idx += 1
-        # else:
         for client in client_list:        
             for _ in range(ratio_label[client%10][label]):
                 client_dataset[client][str(label)].append(dataset[label][idx])
@@ -316,9 +309,9 @@ def get_client_dataset(dataset, ratio_label, ratio_unlabel, num_client=100, num_
 
     random.shuffle(client_list)    
     
+    # distribute unlabel
     for label in range(num_class):                
-        idx = 0
-        # distribute unlabel
+        idx = 0        
         for client in client_list:        
             for _ in range(ratio_unlabel[client%10][label]):
                 client_dataset[client]['unlabel'].append(dataset[label][idx])

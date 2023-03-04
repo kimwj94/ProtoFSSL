@@ -4,7 +4,7 @@ import tensorflow as tf
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-from utils import calc_euclidian_dists, get_prototype
+from utils import calc_euclidian_dists, get_prototype, calc_cosine_sim
 
 class Server:
     
@@ -64,11 +64,16 @@ class Server:
         new_client_list = []
         helper_cnt = self.helper_cnt
 
-        all_protos = np.stack(self.client_prototype_list) #(num_client, 10, 512)
-        global_proto = all_protos * np.expand_dims(valid_tbl, axis=-1)
+        all_protos = tf.stack(self.client_prototype_list) #(num_client, 10, 512)
+        valid_tbl = tf.cast(valid_tbl, tf.float32)
+        global_proto = all_protos * tf.expand_dims(valid_tbl, axis=-1)
         
-        global_proto = np.sum(global_proto, axis=0) / np.expand_dims(np.sum(valid_tbl, axis=0), -1)
+        # Calculate the global prototypes
+        global_proto = tf.reduce_sum(global_proto, axis=0) / tf.expand_dims(tf.reduce_sum(valid_tbl, axis=0), -1)
+        #Normalize
+        global_proto /= tf.norm(global_proto, axis=-1, keepdims=True)
         
+        # Plug in prototypes for missing classes in which clients do not have some classes
         for idx, client_prototype in enumerate(self.client_prototype_list):                        
             client_prototype = client_prototype.numpy()
             if idx < len(self.client_prototype_list) - helper_cnt:
@@ -80,6 +85,9 @@ class Server:
                 new_client_list.append(client_prototype)
             else:
                 new_client_list.append(client_prototype)        
+
+        ### TEST: Use Global proto for pseudo-label
+        new_client_list = [global_proto]
 
         return new_client_list
 
@@ -117,6 +125,7 @@ class Server:
     def update_client_prototypes(self):
         if len(self.client_prototype_list) > self.num_active_client * self.keep_proto_rounds:
             self.client_prototype_list = self.client_prototype_list[-self.num_active_client * self.keep_proto_rounds:]        
+        
 
 
     # input: client model weight
@@ -154,6 +163,7 @@ class Server:
         per_class_div = per_class // div
         
         eval_prototypes = self.get_client_prototype()
+        loss_method = 'euclidean'
         
         for i in range(div):
             query_set_label = []
@@ -166,10 +176,11 @@ class Server:
             query_set_label = np.reshape(query_set_label, (self.num_class * per_class_div,) + self.input_shape)
 
             y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, per_class_div))
-            y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, self.num_class), tf.float32))
+            # y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y, self.num_class), tf.float32))
 
             cat = tf.concat([query_set_label], axis=0)
-            z = model(cat, training=False)
+            z = model(cat, training=False)            
+            z /= tf.norm(z, axis=-1, keepdims=True) 
 
             client_predictions = []            
             valid_tbl = np.ones((len(eval_prototypes), self.num_class), dtype=np.float32)
@@ -178,8 +189,11 @@ class Server:
                 if len(tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8)) > 0:
                     invalid_idx = tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8).numpy()
                     valid_tbl[i, invalid_idx] = 0
-                q_dists_client = calc_euclidian_dists(z, client_proto)
-                p_y_unlabel_client = tf.nn.softmax(-q_dists_client, axis=-1)
+                if loss_method == 'euclidean':
+                    q_dists_client = - calc_euclidian_dists(z, client_proto)
+                else:
+                    q_dists_client = calc_cosine_sim(z, client_proto) / 0.1
+                p_y_unlabel_client = tf.nn.softmax(q_dists_client, axis=-1)
 
                 client_predictions.append(p_y_unlabel_client)
 
@@ -187,11 +201,11 @@ class Server:
             client_p = tf.stack(client_predictions, axis=0)
             averaged_p = tf.reduce_sum(client_p, axis=0) / tf.reshape(tf.reduce_sum(valid_tbl, axis=0), [1, self.num_class]) # (q_unlabel, num_class)
             # averaged_p = tf.reduce_mean(client_p, axis=0)
-            preds = np.argmax(tf.reshape(averaged_p, [self.num_class, per_class_div, -1]), axis=-1)
-            eq = np.equal(preds, y.astype(int)).astype(np.float32)
+            preds = tf.argmax(tf.reshape(averaged_p, [self.num_class, per_class_div, -1]), axis=-1)
+            eq = tf.cast(tf.equal(preds, tf.cast(y, tf.int64)), tf.float32)
 
-            loss = tf.keras.losses.SparseCategoricalCrossentropy()(np.reshape(y.astype(int), [-1]), averaged_p)
-            acc = np.mean(eq)
+            loss = tf.keras.losses.SparseCategoricalCrossentropy()(tf.reshape(tf.cast(y, tf.int32), [-1]), averaged_p)
+            acc = tf.reduce_mean(eq).numpy()
 
             final_acc += acc
             final_loss += loss

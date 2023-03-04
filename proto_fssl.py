@@ -46,8 +46,8 @@ parser.add_argument('--fixmatch', action='store_true', help='Whether to use fixm
 parser.add_argument('--fl_framework', default='fedavg', help='Federated Learning framework. One of [fedavg, fedprox], default: fedavg')
 parser.add_argument('--mu', type=float, default=1e-3, help='Regularization hyperparameter for fedprox')
 
-parser.add_argument('--s_label', type=int, default=1, help='Number of samples for support set in each episode, default: 1')
-parser.add_argument('--q_label', type=int, default=2, help='Number of samples for query set in each episode, default: 2')
+parser.add_argument('--s_label', type=int, default=2, help='Number of samples for support set in each episode, default: 1')
+parser.add_argument('--q_label', type=int, default=3, help='Number of samples for query set in each episode, default: 2')
 parser.add_argument('--q_unlabel', type=int, default=100, help='Number of samples for query set from unlabeled data in each episode, default: 100')
 
 parser.add_argument('--use_noise', type=bool, default=False, help='Whether to add gaussian noise to prototypes when sending to server, default:False')
@@ -278,7 +278,9 @@ if __name__=='__main__':
             # get global model weights & prototypes of other clients
             client_protos = copy.deepcopy(server.get_client_prototype())
             # for each client
-            for c in range(NUM_ACTIVE_CLIENT):      
+            for c in range(NUM_ACTIVE_CLIENT):  
+
+                client_list[client_idx[c]].weight_unlabel = 3e-1    
                 # training with global model 
                 client_weight, client_prototype, client_acc, client_loss, client_loss_unlabel \
                     = client_list[client_idx[c]].training(
