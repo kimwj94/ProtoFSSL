@@ -19,7 +19,8 @@ class Server:
                 is_sl=False,
                 fixmatch=False,
                 print_log=True,
-                helper_cnt=5):
+                helper_cnt=5,
+                dist_metric='cosine'):
         self.global_model = global_model
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
@@ -34,6 +35,7 @@ class Server:
         self.fixmatch = fixmatch
         self.print_log = print_log
         self.helper_cnt = helper_cnt
+        self.dist_metric = dist_metric
 
         assert self.helper_cnt <= self.keep_proto_rounds * self.num_active_client, \
             "Helper count should be smaller than or equal to keep_proto_rounds * num_active_clients"
@@ -51,11 +53,11 @@ class Server:
         valid_tbl = np.ones([len(self.client_prototype_list[-self.helper_cnt:]), self.num_class])
 
         # Find missing classes in prototypes
-        for idx, client_prototype in enumerate(self.client_prototype_list[-self.helper_cnt:]):
-            if len(tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8)) > 0:
-                invalid_idx = tf.where(tf.reduce_mean(client_prototype, axis=-1) > 1E+8).numpy()
+        for idx, client_prototype in enumerate(self.client_prototype_list[-self.helper_cnt:]):        
+            if len(tf.where(tf.norm(client_prototype, axis=-1) < 1E-6)) > 0:
+                invalid_idx = tf.where(tf.norm(client_prototype, axis=-1) < 1E-6).numpy()                
                 valid_tbl[idx, invalid_idx] = 0
-
+        
 
         new_client_list = []        
 
@@ -66,7 +68,7 @@ class Server:
         # Calculate the global prototypes
         global_proto = tf.reduce_sum(global_proto, axis=0) / tf.expand_dims(tf.reduce_sum(valid_tbl, axis=0), -1)
         #Normalize
-        global_proto /= tf.norm(global_proto, axis=-1, keepdims=True)
+        global_proto /= (tf.norm(global_proto, axis=-1, keepdims=True) + 1E-8)
         
         # # Plug in prototypes for missing classes in which clients do not have some classes
         # for idx, client_prototype in enumerate(self.client_prototype_list):                        
@@ -158,8 +160,7 @@ class Server:
         div = 10
         per_class_div = per_class // div
         
-        eval_prototypes = self.get_client_prototype()
-        loss_method = 'euclidean'
+        eval_prototypes = self.get_client_prototype()        
         
         for i in range(div):
             query_set_label = []
@@ -176,16 +177,16 @@ class Server:
 
             cat = tf.concat([query_set_label], axis=0)
             z = model(cat, training=False)            
-            z /= tf.norm(z, axis=-1, keepdims=True) 
+            z /= (tf.norm(z, axis=-1, keepdims=True) + 1E-8)
 
             client_predictions = []            
             valid_tbl = np.ones((len(eval_prototypes), self.num_class), dtype=np.float32)
 
             for client_proto in eval_prototypes:
-                if len(tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8)) > 0:
-                    invalid_idx = tf.where(tf.reduce_mean(client_proto, axis=-1) > 1E+8).numpy()
+                if len(tf.where(tf.norm(client_proto, axis=-1) < 1E-6)) > 0:
+                    invalid_idx = tf.where(tf.norm(client_proto, axis=-1) < 1E-6).numpy()
                     valid_tbl[i, invalid_idx] = 0
-                if loss_method == 'euclidean':
+                if self.dist_metric == 'euclidean':
                     q_dists_client = - calc_euclidian_dists(z, client_proto)
                 else:
                     q_dists_client = calc_cosine_sim(z, client_proto) / 0.1
@@ -193,7 +194,7 @@ class Server:
 
                 client_predictions.append(p_y_unlabel_client)
 
-            # average all distribution
+            # average all distribution1
             client_p = tf.stack(client_predictions, axis=0)
             averaged_p = tf.reduce_sum(client_p, axis=0) / tf.reshape(tf.reduce_sum(valid_tbl, axis=0), [1, self.num_class]) # (q_unlabel, num_class)
             # averaged_p = tf.reduce_mean(client_p, axis=0)

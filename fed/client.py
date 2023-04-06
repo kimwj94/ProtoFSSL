@@ -30,7 +30,9 @@ class Client:
                 warmup_episode=0,
                 sl_loss_fn=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 fl_framework='fedavg',
-                mu=None):
+                mu=None,
+                alpha=0.3,
+                dist_metric='cosine'):
         
         self.optimizer = optimizer
         self.s_label = s_label
@@ -49,6 +51,8 @@ class Client:
         self.sl_loss_fn = sl_loss_fn
         self.fl_framework=fl_framework
         self.mu=mu
+        self.alpha = alpha
+        self.dist_metric = dist_metric
 
     # training using global model weights
     # return: update client model weights
@@ -110,7 +114,7 @@ class Client:
             images[sampled] = np.flip(images[sampled], axis=-3)
             
             # Random shifts
-            images = np.array([shift(img, [np.random.randint(-2, 2), np.random.randint(-2, 2), 0]) for img in images]) # random shift
+            # images = np.array([shift(img, [np.random.randint(-2, 2), np.random.randint(-2, 2), 0]) for img in images]) # random shift
             dataset[key] = images
         return dataset
 
@@ -134,8 +138,7 @@ class Client:
         randaug_n, randaug_m = 1, 14
         rand_aug = iaa.RandAugment(n=randaug_n, m=randaug_m)
 
-        # temp_dataset = self.augment(temp_dataset, rounds)
-        loss_method = 'cosine'
+        # temp_dataset = self.augment(temp_dataset, rounds)        
 
         label_data_dist = np.zeros(self.num_class)
         total_num_data = 0
@@ -145,6 +148,11 @@ class Client:
             total_num_data += len(temp_dataset[str(idx)])
 
         label_data_dist /= total_num_data        
+
+        if len(client_protos) > 0:
+            global_proto = client_protos[0]
+        else:
+            global_proto = None
 
         # local episode
         client_acc = 0.0
@@ -162,21 +170,20 @@ class Client:
             # sample labeled data
             for idx in range(self.num_class):
                 if len(temp_dataset[str(idx)]) > 0:
-                    label_idx = np.random.choice(len(temp_dataset[str(idx)]), (self.s_label + self.q_label), replace=False)
-                    support_set_label.append(np.take(temp_dataset[str(idx)], label_idx[:self.s_label], axis=0))
-                    query_set_label.append(np.take(temp_dataset[str(idx)], label_idx[self.s_label:], axis=0))
-                    y_s.extend([idx]*self.s_label)
-                    y_q.extend([idx]*self.q_label)
-                    
-            num_unlabel = len(temp_dataset['unlabel'])
-            num_unlabel_cls = num_unlabel // 10
+                    num_s_label = max(int(len(temp_dataset[str(idx)]) * self.s_label / (self.s_label + self.q_label)), 1)
+                    num_q_label = max(int(len(temp_dataset[str(idx)]) * self.q_label / (self.s_label + self.q_label)), 1)
+                    is_replace = True if num_s_label + num_q_label > len(temp_dataset[str(idx)]) else False
+
+                    label_idx = np.random.choice(len(temp_dataset[str(idx)]), num_s_label + num_q_label, replace=is_replace)
+                    support_set_label.append(np.take(temp_dataset[str(idx)], label_idx[:num_s_label], axis=0))
+                    query_set_label.append(np.take(temp_dataset[str(idx)], label_idx[num_s_label:], axis=0))
+                    y_s.extend([idx]*num_s_label)
+                    y_q.extend([idx]*num_q_label)
+            
             # sample unlabeled data
-            if rounds > self.unlabel_round and e >= self.warmup_episode:   
-                # q_unlabel_train = max(1, int(self.q_unlabel * rounds / 300))
+            if rounds > self.unlabel_round and e >= self.warmup_episode:                   
                 q_unlabel_train = self.q_unlabel
-                unlabel_idx = np.random.choice(len(temp_dataset['unlabel']), int(q_unlabel_train), replace=False)
-                # unlabel_labels = [i for i in range(10) for _ in range(num_unlabel_cls)]                
-                # unlabel_labels = np.take(unlabel_labels, unlabel_idx, axis=0)                
+                unlabel_idx = np.random.choice(len(temp_dataset['unlabel']), int(q_unlabel_train), replace=False)                
                 query_set_unlabel.append(np.take(temp_dataset['unlabel'], unlabel_idx, axis=0))
                 query_set_unlabel = np.vstack(query_set_unlabel) #/ 255.0
                 query_set_unlabel = np.reshape(query_set_unlabel, (q_unlabel_train,)+self.input_shape)
@@ -188,38 +195,33 @@ class Client:
             y_s = np.array(y_s)
             y_q = np.array(y_q)
 
-            # reshape for input then concatenate
-            # support_set_label = np.reshape(support_set_label, (self.num_class * self.s_label,)+self.input_shape)
-            # query_set_label = np.reshape(query_set_label, (self.num_class * self.q_label,)+self.input_shape)
+            # reshape for input then concatenate            
             support_set_label = np.reshape(support_set_label, (-1,)+self.input_shape)
             query_set_label = np.reshape(query_set_label, (-1,)+self.input_shape)
-
-            support_set_label = rand_aug(images = (support_set_label * 255.0).astype(np.uint8))/255.0
             
-            
-            # label for one-hot vector
-            # y = np.tile(np.arange(self.num_class)[:, np.newaxis], (1, self.q_label))
+            # label for one-hot vector            
             y_onehot = tf.stop_gradient(tf.cast(tf.one_hot(y_q, self.num_class), tf.float32)) # shape: (q_label * num_class, num_class)
             
             # sample unlabeled data
             if rounds > self.unlabel_round and e >= self.warmup_episode:                
-                cat = tf.concat([support_set_label, query_set_label, query_set_unlabel], axis=0)
+                cat = np.concatenate([support_set_label, query_set_label, query_set_unlabel], axis=0)
             else:
-                cat = tf.concat([support_set_label, query_set_label], axis=0) 
+                cat = np.concatenate([support_set_label, query_set_label], axis=0) 
 
             with tf.GradientTape() as tape:
 
+                cat = rand_aug(images = (cat * 255.0).astype(np.uint8))/255.0
+
                 # get embedding vector
                 z = client_model(cat, training=True)                                                
-                z /= tf.norm(z, axis=-1, keepdims=True)                 
+                z /= (tf.norm(z, axis=-1, keepdims=True) + 1E-8)
 
-                # make prototype
-                # prototype = get_prototype(z[:len(support_set_label)], self.s_label, self.num_class)
-                prototype = get_prototype2(z[:len(support_set_label)], y_s, self.num_class)                
+                # make prototype                           
+                prototype = get_prototype2(z[:len(support_set_label)], y_s, self.num_class, global_proto=global_proto)                                
 
                 # compute distance between query and prototype
                 z_query = z[len(support_set_label):]
-                if loss_method == 'euclidean':
+                if self.dist_metric == 'euclidean':
                     q_dists = -calc_euclidian_dists(z_query, prototype) # shape: (q_label * num_class, num_class)
                 else:
                     q_dists = calc_cosine_sim(z_query, prototype) / 0.1 # shape: (q_label * num_class, num_class)
@@ -228,8 +230,7 @@ class Client:
                 q_dists_label = q_dists[:len(query_set_label)]
                 q_dists_unlabel = q_dists[len(query_set_label):]
                 log_p_y = tf.nn.log_softmax(q_dists_label, axis=-1) # shape: (q_label * num_class, num_class)
-
-                # log_p_y = tf.reshape(log_p_y, [self.num_class, self.q_label, -1])
+                
                 loss = -tf.reduce_mean(tf.reshape(tf.reduce_sum(tf.multiply(y_onehot, log_p_y), axis=-1), [-1]))
                 
                 # loss for unlabel data
@@ -238,35 +239,36 @@ class Client:
 
                     # Prepare pseudo labels
                     client_predictions = []
-                    valid_tbl = tf.ones((len(client_protos), self.num_class), dtype=tf.float32)
+                    # valid_tbl = tf.ones((len(client_protos), self.num_class), dtype=tf.float32)
+                    valid_tbl = tf.ones((1, self.num_class), dtype=tf.float32)
 
                     client_predictions2 = []
 
                     z_query_unlabel = z_query[len(query_set_label):]
                     # make distribution using client's prototype
-                    for i in range(len(client_protos)):
+                    # for i in range(len(client_protos)):
 
-                        if loss_method == 'euclidean':
-                            q_dists_client = -calc_euclidian_dists(z_query_unlabel, client_protos[i])                            
-                        else:
-                            q_dists_client = calc_cosine_sim(z_query_unlabel, client_protos[i]) / 0.1                            
+                    if self.dist_metric == 'euclidean':
+                        q_dists_client = -calc_euclidian_dists(z_query_unlabel, global_proto)                            
+                    else:
+                        q_dists_client = calc_cosine_sim(z_query_unlabel, global_proto) / 0.1                            
 
-                        p_y_unlabel_client = tf.nn.softmax(q_dists_client, axis=-1)
-                        client_predictions.append(p_y_unlabel_client)     
+                    p_y_unlabel_client = tf.nn.softmax(q_dists_client, axis=-1)
+                    client_predictions.append(p_y_unlabel_client)     
 
-                        strong_unlabel = rand_aug(images = (query_set_unlabel * 255.0).astype(np.uint8))/255.0
-                        strong_pred = client_model(strong_unlabel, training=True)         
+                    strong_unlabel = rand_aug(images = (query_set_unlabel * 255.0).astype(np.uint8))/255.0
+                    strong_pred = client_model(strong_unlabel, training=True)         
 
-                        if loss_method == 'euclidean':                            
-                            q_dists_client_strong = -calc_euclidian_dists(strong_pred, client_protos[i])
-                            q_dists_strong = -calc_euclidian_dists(strong_pred, prototype)
-                        else:                            
-                            q_dists_client_strong = calc_cosine_sim(strong_pred, client_protos[i]) / 0.1
-                            q_dists_strong = calc_cosine_sim(strong_pred, prototype) / 0.1                
+                    if self.dist_metric == 'euclidean':                            
+                        q_dists_client_strong = -calc_euclidian_dists(strong_pred, global_proto)
+                        q_dists_strong = -calc_euclidian_dists(strong_pred, prototype)
+                    else:                            
+                        q_dists_client_strong = calc_cosine_sim(strong_pred, global_proto) / 0.1
+                        q_dists_strong = calc_cosine_sim(strong_pred, prototype) / 0.1                
 
-                        p_y_unlabel_client2 = tf.nn.softmax(q_dists_client_strong, axis=-1)
-                        client_predictions2.append(p_y_unlabel_client2)   
-                        p_y_unlabel2 = tf.nn.softmax(q_dists_strong, axis=-1)
+                    p_y_unlabel_client2 = tf.nn.softmax(q_dists_client_strong, axis=-1)
+                    client_predictions2.append(p_y_unlabel_client2)   
+                    p_y_unlabel2 = tf.nn.softmax(q_dists_strong, axis=-1)
 
                     
                     # average all distribution
@@ -293,11 +295,6 @@ class Client:
 
                     # loss_unlabel = self.unlabel_loss_fn(normalized_p2, p_y_unlabel2)
                     loss_unlabel = (self.unlabel_loss_fn(normalized_p2, p_y_unlabel) + self.unlabel_loss_fn(normalized_p, p_y_unlabel2)) / 2
-
-                    # loss_unlabel = self.unlabel_loss_fn(normalized_p, p_y_unlabel)
-                    # p_y_unlabel = tf.nn.log_softmax(-q_dists_unlabel, axis=-1) #(q_unlabel*num_class, num_class)
-                    # loss_unlabel = tf.sort(-tf.reduce_sum(tf.multiply(p_y_unlabel, normalized_p), axis=-1))[:int((q_unlabel_train+1) // 2)]                    
-                    # loss_unlabel = tf.reduce_mean(loss_unlabel)
 
                     client_loss_unlabel += loss_unlabel * self.weight_unlabel
                     loss += self.weight_unlabel * loss_unlabel
@@ -343,64 +340,22 @@ class Client:
         y_s = np.array(y_s)
 
         z = client_model(support_set_label, training=False)
-        z /= tf.norm(z, axis=-1, keepdims=True)         
+        z /= (tf.norm(z, axis=-1, keepdims=True) + 1E-8)
         
         # local_proto1 = get_prototype(z, self.num_label, self.num_class, use_noise, stddev)
-        local_proto = get_prototype2(z, y_s, self.num_class, use_noise, stddev)
-
-        # if rounds > self.unlabel_round:
-        #     unlabel_eq = tf.cast(tf.equal(
-        #                     tf.cast(tf.argmax(p_y_unlabel, axis=-1), tf.int32), 
-        #                     tf.cast(unlabel_labels, tf.int32)), tf.float32) 
-        #     print("unlabel acc", tf.reduce_mean(unlabel_eq).numpy())
-
-        #     unlabel_eq = tf.cast(tf.equal( 
-        #                     tf.cast(tf.argmax(normalized_p, axis=-1), tf.int32), 
-        #                     tf.cast(unlabel_labels, tf.int32)), tf.float32) 
-        #     print("unlabel Pseudo-label acc", tf.reduce_mean(unlabel_eq).numpy())           
-
-            
-
-        #     # argsort_idx = tf.where(tf.reduce_max(normalized_p, -1) > 0.9)
-        #     z_unlabel = client_model(temp_dataset['unlabel'])
-        #     if loss_method == 'euclidean':
-        #         q_dists_unlabel = - calc_euclidian_dists(z_unlabel, client_protos[0])
-        #     else:
-        #         q_dists_unlabel = calc_cosine_sim(z_unlabel, client_protos[0]) / 0.1
-        #     p_y_unlabel = tf.nn.softmax(q_dists_client, axis=-1)
-        #     argsort_idx = tf.argsort(-tf.reduce_max(normalized_p, -1))[:int(num_unlabel * 0.1 * rounds / 300)]
-            
-        #     p_top10 = tf.gather(normalized_p, indices=argsort_idx)
-        #     labels_top10 = tf.gather(unlabel_labels, indices=argsort_idx)
-        #     unlabel_eq_top10 = tf.cast(tf.equal(
-        #                     tf.cast(tf.argmax(p_top10, axis=-1), tf.int32), 
-        #                     tf.cast(labels_top10, tf.int32)), tf.float32) 
-        #     print("unlabel Pseudo-label acc top 10", tf.reduce_mean(unlabel_eq_top10).numpy())
-        #     # unlabel_top10 = tf.gather(z_query_unlabel, indices=argsort_idx)
-        #     # pseudo_labels_top10 = tf.argmax(p_top10, axis=-1)
-        #     # local_proto_unlabel = get_prototype2(unlabel_top10, pseudo_labels_top10, self.num_class, use_noise, stddev, client_protos[0])
-            
-        #     consist_eq = tf.equal( 
-        #                     tf.cast(tf.argmax(normalized_p, axis=-1), tf.int32), 
-        #                     tf.cast(tf.argmax(normalized_p2, axis=-1), tf.int32))            
-            
-        #     print("unlabel consistency", np.mean(consist_eq.numpy())) 
-        #     if np.mean(consist_eq.numpy()) > 0:
-        #         z_unlabel = client_model(query_set_unlabel, training=False)
-        #         z_unlabel /= tf.norm(z_unlabel, axis=-1, keepdims=True)    
-
-        #         consist_idx = tf.where(consist_eq)[0]            
-        #         p_consist = tf.gather(z_unlabel, indices=consist_idx)
-        #         pseudo_labels_consist = tf.argmax(p_consist, axis=-1)            
-        #         local_proto_unlabel = get_prototype2(p_consist, pseudo_labels_consist, self.num_class, use_noise, stddev, client_protos[0])
-
-        #         # unlabel_t = 0.5 * rounds / 300
-        #         unlabel_t = 0.3
-        #         # local_proto = local_proto * (1 - unlabel_t) + local_proto_unlabel * unlabel_t
         
-        if len(client_protos) > 0:
-            local_proto = client_protos[0] * 0.7 + local_proto * 0.3
+        local_proto = get_prototype2(z, y_s, self.num_class, use_noise, stddev, global_proto)                
+        local_proto /= (tf.norm(local_proto, axis=-1, keepdims=True) + 1E-8)
+        
+        
+        if global_proto is not None:            
+            local_proto = tf.where(tf.norm(global_proto, axis=-1, keepdims=True) < 1E-6, 
+                                   local_proto, 
+                                   global_proto * (1.0 - self.alpha) + local_proto * self.alpha)
+            
+            local_proto /= (tf.norm(local_proto, axis=-1, keepdims=True) + 1E-8)
 
+            # local_proto = global_proto * (1.0 - self.alpha) + local_proto * self.alpha
 
         del global_model_weights
         del temp_dataset
@@ -419,10 +374,10 @@ class Client:
 
 
         client_model.set_weights(global_model_weights)
-        self.set_learning_rate(rounds)
+        # self.set_learning_rate(rounds)
         temp_dataset = client_dataset[client_idx]
         temp_labels = client_labels[client_idx]
-        #temp_dataset = self.augment(temp_dataset, rounds)
+        # temp_dataset = self.augment(temp_dataset, rounds)
 
         # local episode
         client_acc = 0.0
@@ -450,6 +405,12 @@ class Client:
         idx = np.random.permutation(len(images))
         images = images[idx]
         labels = labels[idx]
+
+        from imgaug import augmenters as iaa
+        randaug_n, randaug_m = 1, 14
+        rand_aug = iaa.RandAugment(n=randaug_n, m=randaug_m)
+
+        images = rand_aug(images = (images * 255.0).astype(np.uint8))/255.0
 
 
         for e in range(self.local_episode):            
@@ -505,7 +466,7 @@ class Client:
         weight_unlabel = 1e-2
 
         client_model.set_weights(global_model_weights)
-        self.set_learning_rate(rounds)
+        # self.set_learning_rate(rounds)
         temp_dataset = client_dataset[client_idx]
 
         images_l, labels_l = [], []
@@ -544,48 +505,54 @@ class Client:
         from imgaug import augmenters as iaa
         rand_aug = iaa.RandAugment(n=randaug_n, m=randaug_m)
 
+
+        # split into 2 steps
+        bs_l, bs_u = (len(images_l)+1) // 2, (len(client_unlabels)+1) // 2 
+
         for e in range(self.local_episode): 
-            with tf.GradientTape() as tape:
-                predictions = client_model(images_l, training=True)
-                batch_labels = labels_l
-                loss_label = self.sl_loss_fn(batch_labels, predictions)
-                
-                batch_unlabel = client_unlabels
-                weak_unlabel = weak_augment(batch_unlabel, flip, translation)
-                weak_pred = client_model(weak_unlabel, training=True)
 
-                above_th = np.where(np.amax(weak_pred, axis=-1) > threshold)
-                # pseudo_label = (tf.keras.utils.to_categorical(np.argmax(weak_pred, axis=1), self.num_class)[above_th])
-                pseudo_label = np.argmax(weak_pred, axis=1)[above_th]
-                
-                batch_unlabel = batch_unlabel[above_th]
-                strong_unlabel = rand_aug(images = (batch_unlabel * 255.0).astype(np.uint8))/255.0
-                strong_pred = client_model(strong_unlabel, training=True)
+            for ii in range(2):
+                with tf.GradientTape() as tape:                
+                    predictions = client_model(images_l[ii*bs_l:(ii+1)*bs_l], training=True)
+                    batch_labels = labels_l[ii*bs_l:(ii+1)*bs_l]
+                    loss_label = self.sl_loss_fn(batch_labels, predictions)
+                    
+                    batch_unlabel = client_unlabels[ii*bs_u:(ii+1)*bs_u]
+                    weak_unlabel = weak_augment(batch_unlabel, flip, translation)
+                    weak_pred = client_model(weak_unlabel, training=True)
+
+                    above_th = np.where(np.amax(weak_pred, axis=-1) > threshold)
+                    # pseudo_label = (tf.keras.utils.to_categorical(np.argmax(weak_pred, axis=1), self.num_class)[above_th])
+                    pseudo_label = np.argmax(weak_pred, axis=1)[above_th]
+                    
+                    batch_unlabel = batch_unlabel[above_th]
+                    strong_unlabel = rand_aug(images = (batch_unlabel * 255.0).astype(np.uint8))/255.0
+                    strong_pred = client_model(strong_unlabel, training=True)
 
 
-                if len(strong_unlabel) > 0:
-                    loss_unlabel = self.sl_loss_fn(pseudo_label, strong_pred)
-                else:
-                    loss_unlabel = 0.0
+                    if len(strong_unlabel) > 0:
+                        loss_unlabel = self.sl_loss_fn(pseudo_label, strong_pred)
+                    else:
+                        loss_unlabel = 0.0
 
-                if loss_unlabel != 0.0:
-                    # print('use unlabel loss')
-                    loss = loss_label + weight_unlabel * loss_unlabel
-                else:
-                    loss = loss_label
-                if self.fl_framework == 'fedprox':
-                    proxy = (self.mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
-                    loss += proxy
-            grads = tape.gradient(loss, client_model.trainable_weights)
-            self.optimizer.apply_gradients(zip(grads, client_model.trainable_weights))
+                    if loss_unlabel != 0.0:
+                        # print('use unlabel loss')
+                        loss = loss_label + weight_unlabel * loss_unlabel
+                    else:
+                        loss = loss_label
+                    if self.fl_framework == 'fedprox':
+                        proxy = (self.mu/2)*difference_model_norm_2_square(global_model_weights, client_model.get_weights())
+                        loss += proxy
+                grads = tape.gradient(loss, client_model.trainable_weights)
+                self.optimizer.apply_gradients(zip(grads, client_model.trainable_weights))
 
-            eq = tf.cast(tf.equal(
-                    tf.cast(tf.argmax(predictions, axis=-1), tf.int32), 
-                    tf.cast(batch_labels, tf.int32)), tf.float32) 
+                eq = tf.cast(tf.equal(
+                        tf.cast(tf.argmax(predictions, axis=-1), tf.int32), 
+                        tf.cast(batch_labels, tf.int32)), tf.float32) 
 
-            client_loss += loss * batch_labels.shape[0]
-            acc = tf.reduce_sum(eq)
-            client_acc += acc
+                client_loss += loss * batch_labels.shape[0]
+                acc = tf.reduce_sum(eq)
+                client_acc += acc
 
         client_acc /= (self.local_episode * images_l.shape[0])
         client_loss /= (self.local_episode * images_l.shape[0])

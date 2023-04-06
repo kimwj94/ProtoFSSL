@@ -16,7 +16,7 @@
 # python proto_fssl.py --exp_name fedavg_part_cifar10_nid --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
 # python proto_fssl.py --exp_name fedavg_part_svhn --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2
 # python proto_fssl.py --exp_name fedavg_part_svhn_nid --dataset svhn --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --non_iid
-# python proto_fssl.py --exp_name fedavg_part_stl10 --dataset stl10 --model res9 --is_sl --num_label 10 --num_unlabel 0 --local_episode 2 
+# python proto_fssl.py --exp_name fedavg_part_stl10 --dataset stl10 --model res9 --num_label 10 --num_unlabel 0 --local_episode 2
 
 # #FedProx - Partial SL
 # python proto_fssl.py --exp_name fedprox_part_cifar10 --dataset cifar10 --model res9 --is_sl --num_label 5 --num_unlabel 0 --local_episode 2 --mu 1e-2 --fl_framework fedprox
@@ -48,16 +48,13 @@
 # python proto_fssl.py --exp_name fedavg_part_xnid --model res9 --is_sl --num_label 5  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
 # python proto_fssl.py --exp_name fixmatch_xnid --model res9  --fixmatch --local_episode 2 --non_iid --extreme_non_iid --seed 101 
 # python proto_fssl.py --exp_name cifar10_xnid --dataset cifar10 --model res9 --non_iid --extreme_non_iid --seed 101
+# python proto_fssl.py --exp_name stl10_xnid --dataset stl10 --model res9 --non_iid --extreme_non_iid --seed 101
 
 # python proto_fssl.py --exp_name fedavg_svhn_xnid --dataset svhn --model res9 --is_sl --num_label 54  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
 # python proto_fssl.py --exp_name fedavg_part_svhn_xnid --dataset svhn --model res9 --is_sl --num_label 5  --local_episode 2 --non_iid --extreme_non_iid --seed 101 
 # python proto_fssl.py --exp_name fixmatch_svhn_xnid --dataset svhn --model res9  --fixmatch --local_episode 2 --non_iid --extreme_non_iid --seed 101 
 # python proto_fssl.py --exp_name svhn_xnid --dataset svhn --model res9 --non_iid --extreme_non_iid --seed 101 
 
-
-# python proto_fssl.py --exp_name fedavg_part_stl10_xnid --dataset stl10 --model res9 --is_sl --num_label 10  --num_unlabel 0 --local_episode 2 --non_iid --extreme_non_iid --seed 101 
-# python proto_fssl.py --exp_name fixmatch_stl10_xnid --dataset stl10 --model res9 --fixmatch --num_label 10  --num_unlabel 980 --local_episode 2 --non_iid --extreme_non_iid --seed 101
-# python proto_fssl.py --exp_name stl10_xnid --dataset stl10 --model res9 --num_label 10  --num_unlabel 980 --non_iid --extreme_non_iid --seed 101 
 
 #fixmatch, severe non-iid
 # python proto_fssl.py --exp_name cifar10_fixmatch --dataset cifar10 --model res9 --fixmatch --seed 1001 --local_episode 2 --non_iid
@@ -136,30 +133,23 @@
 # python proto_fssl.py --exp_name cifar10_nid_m30_H30 --dataset cifar10 --model res9  --helper_cnt 30 --num_active_client 30 --non_iid
 
 
-# Different moving average parameters
-python proto_fssl.py --exp_name cifar10_alpha0.8 --dataset cifar10 --model res9 --alpha 0.8
-python proto_fssl.py --exp_name cifar10_alpha0.9 --dataset cifar10 --model res9 --alpha 0.9
-python proto_fssl.py --exp_name cifar10_alpha0.95 --dataset cifar10 --model res9 --alpha 0.95
-python proto_fssl.py --exp_name cifar10_alpha0.99 --dataset cifar10 --model res9 --alpha 0.99
-python proto_fssl.py --exp_name cifar10_alpha0.999 --dataset cifar10 --model res9 --alpha 0.999
-python proto_fssl.py --exp_name cifar10_nid_alpha0.8 --dataset cifar10 --model res9 --alpha 0.8 --non_iid
-python proto_fssl.py --exp_name cifar10_nid_alpha0.9 --dataset cifar10 --model res9 --alpha 0.9 --non_iid
-python proto_fssl.py --exp_name cifar10_nid_alpha0.95 --dataset cifar10 --model res9 --alpha 0.95 --non_iid
-python proto_fssl.py --exp_name cifar10_nid_alpha0.99 --dataset cifar10 --model res9 --alpha 0.99 --non_iid
-python proto_fssl.py --exp_name cifar10_nid_alpha0.999 --dataset cifar10 --model res9 --alpha 0.999 --non_iid
-
-
-
 # # Different local episode, active clients
 # python proto_fssl.py --exp_name cifar10_E1 --dataset cifar10 --model res9 --local_episode 1
 # python proto_fssl.py --exp_name cifar10_E2 --dataset cifar10 --model res9 --local_episode 2
 # python proto_fssl.py --exp_name cifar10_E5 --dataset cifar10 --model res9 --local_episode 5
 # python proto_fssl.py --exp_name cifar10_E20 --dataset cifar10 --model res9 --local_episode 20
+# python proto_fssl.py --exp_name cifar10_E1_M10 --dataset cifar10 --model res9 --local_episode 1 --num_active_client 10
+# python proto_fssl.py --exp_name cifar10_E2_M10 --dataset cifar10 --model res9 --local_episode 2 --num_active_client 10
+# python proto_fssl.py --exp_name cifar10_E5_M10 --dataset cifar10 --model res9 --local_episode 5 --num_active_client 10
+# python proto_fssl.py --exp_name cifar10_E10_M10 --dataset cifar10 --model res9 --local_episode 10 --num_active_client 10
+# python proto_fssl.py --exp_name cifar10_E20_M10 --dataset cifar10 --model res9 --local_episode 20 --num_active_client 10
 # python proto_fssl.py --exp_name cifar10_E1_M20 --dataset cifar10 --model res9 --local_episode 1 --num_active_client 20
 # python proto_fssl.py --exp_name cifar10_E2_M20 --dataset cifar10 --model res9 --local_episode 2 --num_active_client 20
 # python proto_fssl.py --exp_name cifar10_E5_M20 --dataset cifar10 --model res9 --local_episode 5 --num_active_client 20
 # python proto_fssl.py --exp_name cifar10_E10_M20 --dataset cifar10 --model res9 --local_episode 10 --num_active_client 20
 # python proto_fssl.py --exp_name cifar10_E20_M20 --dataset cifar10 --model res9 --local_episode 20 --num_active_client 20
+
+
 
 # # Different number of unlabel samples
 # python proto_fssl.py --exp_name cifar10_unlabel_10 --dataset cifar10 --model res9 --q_unlabel 10
@@ -168,6 +158,7 @@ python proto_fssl.py --exp_name cifar10_nid_alpha0.999 --dataset cifar10 --model
 # python proto_fssl.py --exp_name cifar10_unlabel_50 --dataset cifar10 --model res9 --q_unlabel 50
 # python proto_fssl.py --exp_name cifar10_unlabel_200 --dataset cifar10 --model res9 --q_unlabel 200
 
+
 # Add noise
 # python proto_fssl.py --exp_name cifar10_noise_0.01 --dataset cifar10 --model res9 --use_noise --stddev 0.01
 # python proto_fssl.py --exp_name cifar10_noise_0.02 --dataset cifar10 --model res9 --use_noise --stddev 0.02
@@ -175,7 +166,7 @@ python proto_fssl.py --exp_name cifar10_nid_alpha0.999 --dataset cifar10 --model
 # python proto_fssl.py --exp_name cifar10_noise_0.1 --dataset cifar10 --model res9 --use_noise --stddev 0.1
 # python proto_fssl.py --exp_name cifar10_noise_0.2 --dataset cifar10 --model res9 --use_noise --stddev 0.2
 # python proto_fssl.py --exp_name cifar10_noise_0.5 --dataset cifar10 --model res9 --use_noise --stddev 0.5
-# python proto_fssl.py --exp_name cifar10_noise_1.0 --dataset cifar10 --model res9 --use_noise --stddev 1.0
+python proto_fssl.py --exp_name cifar10_noise_1.0 --dataset cifar10 --model res9 --use_noise --stddev 1.0
 
 # python proto_fssl.py --exp_name cifar10_nid_noise_0.01 --dataset cifar10 --model res9 --use_noise --stddev 0.01 --non_iid
 # python proto_fssl.py --exp_name cifar10_nid_noise_0.02 --dataset cifar10 --model res9 --use_noise --stddev 0.02 --non_iid
@@ -183,23 +174,23 @@ python proto_fssl.py --exp_name cifar10_nid_alpha0.999 --dataset cifar10 --model
 # python proto_fssl.py --exp_name cifar10_nid_noise_0.1 --dataset cifar10 --model res9 --use_noise --stddev 0.1 --non_iid
 # python proto_fssl.py --exp_name cifar10_nid_noise_0.2 --dataset cifar10 --model res9 --use_noise --stddev 0.2 --non_iid
 # python proto_fssl.py --exp_name cifar10_nid_noise_0.5 --dataset cifar10 --model res9 --use_noise --stddev 0.5 --non_iid
-# python proto_fssl.py --exp_name cifar10_nid_noise_1.0 --dataset cifar10 --model res9 --use_noise --stddev 1.0 --non_iid
+python proto_fssl.py --exp_name cifar10_nid_noise_1.0 --dataset cifar10 --model res9 --use_noise --stddev 1.0 --non_iid
 
 # python proto_fssl.py --exp_name svhn_noise_0.01 --dataset svhn --model res9 --use_noise --stddev 0.01
 # python proto_fssl.py --exp_name svhn_noise_0.02 --dataset svhn --model res9 --use_noise --stddev 0.02
 # python proto_fssl.py --exp_name svhn_noise_0.05 --dataset svhn --model res9 --use_noise --stddev 0.05
 # python proto_fssl.py --exp_name svhn_noise_0.1 --dataset svhn --model res9 --use_noise --stddev 0.1
 # python proto_fssl.py --exp_name svhn_noise_0.2 --dataset svhn --model res9 --use_noise --stddev 0.2
-# python proto_fssl.py --exp_name svhn_noise_0.5 --dataset svhn --model res9 --use_noise --stddev 0.5
-# python proto_fssl.py --exp_name svhn_noise_1.0 --dataset svhn --model res9 --use_noise --stddev 1.0
+python proto_fssl.py --exp_name svhn_noise_0.5 --dataset svhn --model res9 --use_noise --stddev 0.5
+python proto_fssl.py --exp_name svhn_noise_1.0 --dataset svhn --model res9 --use_noise --stddev 1.0
 
 # python proto_fssl.py --exp_name svhn_nid_noise_0.01 --dataset svhn --model res9 --use_noise --stddev 0.01 --non_iid
 # python proto_fssl.py --exp_name svhn_nid_noise_0.02 --dataset svhn --model res9 --use_noise --stddev 0.02 --non_iid
 # python proto_fssl.py --exp_name svhn_nid_noise_0.05 --dataset svhn --model res9 --use_noise --stddev 0.05 --non_iid
 # python proto_fssl.py --exp_name svhn_nid_noise_0.1 --dataset svhn --model res9 --use_noise --stddev 0.1 --non_iid
 # python proto_fssl.py --exp_name svhn_nid_noise_0.2 --dataset svhn --model res9 --use_noise --stddev 0.2 --non_iid
-# python proto_fssl.py --exp_name svhn_nid_noise_0.5 --dataset svhn --model res9 --use_noise --stddev 0.5 --non_iid
-# python proto_fssl.py --exp_name svhn_nid_noise_1.0 --dataset svhn --model res9 --use_noise --stddev 1.0 --non_iid
+python proto_fssl.py --exp_name svhn_nid_noise_0.5 --dataset svhn --model res9 --use_noise --stddev 0.5 --non_iid
+python proto_fssl.py --exp_name svhn_nid_noise_1.0 --dataset svhn --model res9 --use_noise --stddev 1.0 --non_iid
 
 # python proto_fssl.py --exp_name stl10_noise_0.01 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --use_noise --stddev 0.01
 # python proto_fssl.py --exp_name stl10_noise_0.02 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --use_noise --stddev 0.02
@@ -208,3 +199,6 @@ python proto_fssl.py --exp_name cifar10_nid_alpha0.999 --dataset cifar10 --model
 # python proto_fssl.py --exp_name stl10_noise_0.2 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --use_noise --stddev 0.2
 # python proto_fssl.py --exp_name stl10_noise_0.5 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --use_noise --stddev 0.5
 # python proto_fssl.py --exp_name stl10_noise_1.0 --dataset stl10 --model res9 --num_label 10 --num_unlabel 980 --use_noise --stddev 1.0
+
+
+

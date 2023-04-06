@@ -226,17 +226,27 @@ def get_data_distribution(is_iid=True, is_xnid=False, num_dist_data=490, num_cla
         if num_class == 10:
             if is_xnid:
                 ratio = [
-                [0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0], # type 0
-                [0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0], # type 1 
-                [0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05], # type 2 
-                [0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05], # type 3 
-                [0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05], # type 4 
-                [0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05], # type 5 
-                [0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1], # type 6 
-                [0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1], # type 7 
-                [0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1], # type 8 
-                [0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5], # type 9
-            ]
+                    [0.5,0.1,0.1,0.1,0.1,0.1,0.0,0.0,0.0,0.0], # type 0
+                    [0.0,0.5,0.1,0.1,0.1,0.1,0.1,0.0,0.0,0.0], # type 1 
+                    [0.0,0.0,0.5,0.1,0.1,0.1,0.1,0.1,0.0,0.0], # type 2 
+                    [0.0,0.0,0.0,0.5,0.1,0.1,0.1,0.1,0.1,0.0], # type 3 
+                    [0.0,0.0,0.0,0.0,0.5,0.1,0.1,0.1,0.1,0.1], # type 4 
+                    [0.1,0.0,0.0,0.0,0.0,0.5,0.1,0.1,0.1,0.1], # type 5 
+                    [0.1,0.1,0.0,0.0,0.0,0.0,0.5,0.1,0.1,0.1], # type 6 
+                    [0.1,0.1,0.1,0.0,0.0,0.0,0.0,0.5,0.1,0.1], # type 7 
+                    [0.1,0.1,0.1,0.1,0.0,0.0,0.0,0.0,0.5,0.1], # type 8 
+                    [0.1,0.1,0.1,0.1,0.1,0.0,0.0,0.0,0.0,0.5], # type 9
+                    # [0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0], # type 0
+                    # [0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0], # type 1 
+                    # [0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05,0.05], # type 2 
+                    # [0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05,0.05], # type 3 
+                    # [0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05,0.05], # type 4 
+                    # [0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1,0.05], # type 5 
+                    # [0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1,0.1], # type 6 
+                    # [0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1,0.1], # type 7 
+                    # [0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5,0.1], # type 8 
+                    # [0.1,0.1,0.1,0.05,0.05,0.05,0.05,0.0,0.0,0.5], # type 9
+                ]
             else:
                 ratio = [
                     [0.50,0.15,0.03,0.03,0.03,0.02,0.03,0.03,0.03,0.15], # type 0
@@ -372,9 +382,10 @@ def get_client_dataset_sl(dataset, ratio, num_client=100, num_label=54, num_clas
 
 
 # distribute data for clients
-def get_client_dataset_stl10(dataset, unlabeled_dataset, num_client=100, num_label=10, num_class=10, num_unlabel=980):
+def get_client_dataset_stl10(dataset, ratio_label, unlabeled_dataset, num_client=100, num_label=10, num_class=10, num_unlabel=980, seed=SEED_NUM):
     client_dataset = []
 
+    #Initialize
     for _ in range(num_client):
         temp = {}
         for i in range(num_class):
@@ -382,18 +393,30 @@ def get_client_dataset_stl10(dataset, unlabeled_dataset, num_client=100, num_lab
         temp['unlabel'] = []
         client_dataset.append(temp)
 
+    # for label in range(num_class):
+    #     num_data = len(dataset[label])
+    #     idx = 0
+    #     # distribute label
+    #     for client in range(num_client):
+    #         for _ in range(num_label):
+    #             client_dataset[client][str(label)].append(dataset[label][idx])
+    #             idx += 1
+
+    client_list = list(range(num_client))
+    random.seed(seed)
+    random.shuffle(client_list)
+
     for label in range(num_class):
         num_data = len(dataset[label])
         idx = 0
-        # distribute label
-        for client in range(num_client):
-            for _ in range(num_label):
+        for client in client_list:        
+            for _ in range(ratio_label[client%10][label]):
                 client_dataset[client][str(label)].append(dataset[label][idx])
-                idx += 1
+                idx += 1     
                 
-        # distribute unlabel
-        for client in range(num_client):
-            client_dataset[client]['unlabel'] = unlabeled_dataset[client*num_unlabel:(client+1)*num_unlabel, :, :, :]
+    # distribute unlabel
+    for client in client_list:
+        client_dataset[client]['unlabel'] = unlabeled_dataset[client*num_unlabel:(client+1)*num_unlabel, :, :, :]
                               
     for i in range(num_client):
         for key in client_dataset[i]:
@@ -435,7 +458,12 @@ def get_dataset(dataset_name='cifar10', is_iid=True, is_xnid=False, num_client=1
         client_dataset = get_client_dataset(train_dataset, ratio_label, ratio_unlabel, num_client=num_client, num_label=num_label, num_class=num_class)
         client_labels = None        
     else:
-        client_dataset = get_client_dataset_stl10(train_dataset, unlabeled_images, num_client=num_client, num_label=num_label, num_class=num_class)
+        if is_xnid:
+            ratio_label = get_data_distribution(is_iid=is_iid, is_xnid=is_xnid, num_dist_data=num_label * num_class, num_class=num_class)
+        else:
+            ratio_label = get_data_distribution(is_iid=True, is_xnid=False, num_dist_data=num_label * num_class, num_class=num_class)
+
+        client_dataset = get_client_dataset_stl10(train_dataset, ratio_label, unlabeled_images, num_client=num_client, num_label=num_label, num_class=num_class)
         client_labels = None
 
     return client_dataset, val_dataset, test_dataset, num_class, input_shape, client_labels

@@ -20,7 +20,7 @@ def calc_euclidian_dists(x, y, root=False):
 
 def calc_cosine_sim(x, y, root=False):
     """
-    Calculate euclidian distance between two 3D tensors.
+    Calculate cosine similarity between two 3D tensors.
     Args:
         x (tf.Tensor): embedding vector
         y (tf.Tensor): prototype
@@ -31,10 +31,8 @@ def calc_cosine_sim(x, y, root=False):
     x = tf.tile(tf.expand_dims(x, 1), [1, m, 1]) # embedding vector 가 10번 반복됨.
     y = tf.tile(tf.expand_dims(y, 0), [n, 1, 1]) # 모든 prototype이 있음
 
-    sim = tf.reduce_sum(x * y, axis=-1) / (tf.norm(x, axis=-1) * tf.norm(y, axis=-1))
+    sim = tf.reduce_sum(x * y, axis=-1) / (tf.norm(x, axis=-1) * tf.norm(y, axis=-1) + 1E-6)
     return sim
-    
-    
 
 # compute prototypes for each class
 def get_prototype(z, s_label, num_class, add_noise=False, stddev = 0.0):
@@ -56,9 +54,9 @@ def get_prototype2(z, labels, num_class, add_noise=False, stddev = 0.0, global_p
             z_prototypes.append(tf.reshape(tf.reduce_mean(tf.gather(z, z_idx), axis=0), [-1]))            
         else:           
             if global_proto is not None:
-                z_prototypes.append(global_proto[c])     
+                z_prototypes.append(global_proto[c])
             else:
-                z_prototypes.append(tf.ones(z.shape[-1])* 1E9)
+                z_prototypes.append(tf.zeros(z.shape[-1]))
 
     z_prototypes = tf.stack(z_prototypes) #, dtype=tf.float32)
     
